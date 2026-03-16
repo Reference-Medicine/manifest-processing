@@ -1364,7 +1364,5 @@
       "date_field": "Stool freezing date",
       "time_field": "Stool freezing time"
     }
-  ],
-  "display_as_rules": [],
-  "alert_rules": []
+  ]
 }

@@ -12,6 +12,7 @@ import pandas as pd
 
 
 CONFIG_PATH = Path(__file__).parent / "config" / "default_mapping.json"
+CORE_RULES_PATH = Path(__file__).parent / "config" / "core_rules.json"
 
 
 def load_config(path=None):
@@ -26,6 +27,38 @@ def save_config(config, path=None):
     p = Path(path) if path else CONFIG_PATH
     with open(p, "w") as f:
         json.dump(config, f, indent=2)
+
+
+def load_core_rules(path=None):
+    """Load persistent core rules from JSON."""
+    p = Path(path) if path else CORE_RULES_PATH
+    if not p.exists():
+        return {"display_as_rules": [], "alert_rules": []}
+    with open(p) as f:
+        return json.load(f)
+
+
+def save_core_rules(rules, path=None):
+    """Save persistent core rules to JSON."""
+    p = Path(path) if path else CORE_RULES_PATH
+    with open(p, "w") as f:
+        json.dump(rules, f, indent=2)
+
+
+def get_merged_rules(core_rules, session_rules_display=None, session_rules_alert=None):
+    """Merge core rules with session (one-off) rules.
+
+    Returns (display_as_rules, alert_rules) with core rules first, then session rules.
+    """
+    display_as = list(core_rules.get("display_as_rules", []))
+    if session_rules_display:
+        display_as.extend(session_rules_display)
+
+    alerts = list(core_rules.get("alert_rules", []))
+    if session_rules_alert:
+        alerts.extend(session_rules_alert)
+
+    return display_as, alerts
 
 
 # ---------------------------------------------------------------------------
@@ -382,15 +415,23 @@ def categorize_biomedica_specimen(row, config):
 # Full pipeline
 # ---------------------------------------------------------------------------
 
-def process_manifest(files, supplier, config):
+def process_manifest(files, supplier, config,
+                     session_display_rules=None, session_alert_rules=None):
     """
     Process one or more manifest files for a given supplier.
+
+    Args:
+        session_display_rules: One-off display-as rules from the GUI (not persisted).
+        session_alert_rules: One-off alert rules from the GUI (not persisted).
+
     Returns:
         - cases_df: DataFrame of cases
         - specimen_dfs: dict of {specimen_type: DataFrame}
         - wo_summary: DataFrame with WO summary
         - warnings: list of warning strings
         - unrecognized_cols: list of unrecognized column names
+        - case_alerts: dict of {row_index: [alert messages]}
+        - cases_full_df: full DataFrame with all columns (for alert refresh)
     """
     config = json.loads(json.dumps(config))  # deep copy
     warnings = []
@@ -509,14 +550,22 @@ def process_manifest(files, supplier, config):
         if hrs_formalin is not None and isinstance(hrs_formalin, (int, float)) and hrs_formalin < 0:
             warnings.append(f"Donor {donor}: Negative formalin time ({hrs_formalin} hrs).")
 
-    # Apply display-as rules to all DataFrames
-    cases_full_df = apply_display_as_rules(cases_full_df, config)
-    cases_df = apply_display_as_rules(cases_df, config)
-    for key in specimen_dfs:
-        specimen_dfs[key] = apply_display_as_rules(specimen_dfs[key], config)
+    # Merge core rules with session (one-off) rules
+    core_rules = load_core_rules()
+    merged_display, merged_alerts = get_merged_rules(
+        core_rules, session_display_rules, session_alert_rules
+    )
 
-    # Evaluate alerts on full cases data (has all columns, not just export columns)
-    case_alerts = evaluate_alerts(cases_full_df, config)
+    # Apply merged display-as rules to all DataFrames
+    display_config = {"display_as_rules": merged_display}
+    cases_full_df = apply_display_as_rules(cases_full_df, display_config)
+    cases_df = apply_display_as_rules(cases_df, display_config)
+    for key in specimen_dfs:
+        specimen_dfs[key] = apply_display_as_rules(specimen_dfs[key], display_config)
+
+    # Evaluate merged alert rules on full cases data (all columns, not just export)
+    alert_config = {"alert_rules": merged_alerts}
+    case_alerts = evaluate_alerts(cases_full_df, alert_config)
 
     # WO Summary
     wo_summary = build_wo_summary(cases_df, specimen_dfs)

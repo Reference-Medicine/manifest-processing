@@ -13,6 +13,9 @@ import streamlit as st
 from processing_engine import (
     load_config,
     save_config,
+    load_core_rules,
+    save_core_rules,
+    get_merged_rules,
     process_manifest,
     evaluate_alerts,
     CONFIG_PATH,
@@ -133,6 +136,12 @@ def init_state():
         st.session_state.case_alerts = {}
     if "cases_full_df" not in st.session_state:
         st.session_state.cases_full_df = None
+    if "core_rules" not in st.session_state:
+        st.session_state.core_rules = load_core_rules()
+    if "session_display_rules" not in st.session_state:
+        st.session_state.session_display_rules = []
+    if "session_alert_rules" not in st.session_state:
+        st.session_state.session_alert_rules = []
 
 
 init_state()
@@ -187,7 +196,9 @@ if page == "Process Manifests":
     if uploaded_files and st.button("Process Manifests", type="primary"):
         with st.spinner("Processing..."):
             cases_df, specimen_dfs, wo_summary, warnings, unrecognized, case_alerts, cases_full_df = process_manifest(
-                uploaded_files, supplier, config
+                uploaded_files, supplier, config,
+                session_display_rules=st.session_state.session_display_rules,
+                session_alert_rules=st.session_state.session_alert_rules,
             )
 
             st.session_state.cases_df = cases_df
@@ -234,10 +245,15 @@ if page == "Process Manifests":
         # Refresh Alerts button — re-evaluates alert rules against current cases
         if st.session_state.cases_full_df is not None and not st.session_state.cases_full_df.empty:
             if st.button("Refresh Alerts", help="Re-evaluate alert rules (use after adding/editing rules)"):
-                fresh_config = load_config()
-                st.session_state.config = fresh_config
-                st.session_state.case_alerts = evaluate_alerts(st.session_state.cases_full_df, fresh_config)
-                config = fresh_config
+                fresh_core = load_core_rules()
+                st.session_state.core_rules = fresh_core
+                _, merged_alerts = get_merged_rules(
+                    fresh_core,
+                    session_alert_rules=st.session_state.session_alert_rules,
+                )
+                st.session_state.case_alerts = evaluate_alerts(
+                    st.session_state.cases_full_df, {"alert_rules": merged_alerts}
+                )
                 st.rerun()
 
         # Alerts Summary Table
@@ -524,86 +540,133 @@ elif page == "Display As Rules":
     st.title("Display As Rules")
     st.write(
         'Substitute cell values before export. For example, display "M" as "Male". '
-        "Rules are applied after mapping and calculations."
+        "**Core rules** persist across sessions. **Session rules** are one-off and reset when you reload."
     )
 
     all_output_fields = sorted(set(
         m["output"] for m in config["column_mappings"] if m.get("output")
     ))
 
-    display_rules = config.get("display_as_rules", [])
+    core_rules = st.session_state.core_rules
+    core_display = core_rules.get("display_as_rules", [])
 
-    edited = False
+    # --- Core Rules (persistent) ---
+    st.subheader("Core Rules (persistent)")
+    core_edited = False
 
-    for i, rule in enumerate(display_rules):
+    for i, rule in enumerate(core_display):
         with st.expander(
-            f'"{rule.get("match", "")}" → "{rule.get("display_as", "")}" '
+            f'"{rule.get("match", "")}" \u2192 "{rule.get("display_as", "")}" '
             f'({len(rule.get("columns", []))} columns)',
             expanded=False,
         ):
             col1, col2 = st.columns(2)
             with col1:
-                new_match = st.text_input("Match phrase", value=rule.get("match", ""), key=f"da_match_{i}")
+                new_match = st.text_input("Match phrase", value=rule.get("match", ""), key=f"cda_match_{i}")
             with col2:
-                new_display = st.text_input("Display as", value=rule.get("display_as", ""), key=f"da_disp_{i}")
+                new_display = st.text_input("Display as", value=rule.get("display_as", ""), key=f"cda_disp_{i}")
 
             new_cols = st.multiselect(
                 "Apply to columns",
                 options=all_output_fields,
                 default=[c for c in rule.get("columns", []) if c in all_output_fields],
-                key=f"da_cols_{i}",
+                key=f"cda_cols_{i}",
             )
-
             new_exact = st.checkbox(
                 "Exact match (entire cell must equal the phrase)",
                 value=rule.get("exact_match", True),
-                key=f"da_exact_{i}",
+                key=f"cda_exact_{i}",
             )
 
             col_del, _ = st.columns([1, 3])
             with col_del:
-                if st.button("Delete this rule", key=f"da_del_{i}"):
-                    display_rules.pop(i)
-                    edited = True
+                if st.button("Delete", key=f"cda_del_{i}"):
+                    core_display.pop(i)
+                    core_edited = True
                     st.rerun()
 
             updated_rule = {
-                "match": new_match,
-                "display_as": new_display,
-                "columns": new_cols,
-                "exact_match": new_exact,
+                "match": new_match, "display_as": new_display,
+                "columns": new_cols, "exact_match": new_exact,
             }
             if updated_rule != rule:
-                display_rules[i] = updated_rule
-                edited = True
+                core_display[i] = updated_rule
+                core_edited = True
 
-    # Add new rule
-    st.subheader("Add New Rule")
-    with st.form("new_display_as_rule"):
+    st.subheader("Add Core Rule")
+    with st.form("new_core_display_rule"):
         nc1, nc2 = st.columns(2)
         with nc1:
             new_r_match = st.text_input("Match phrase (e.g. 'M')")
         with nc2:
             new_r_display = st.text_input("Display as (e.g. 'Male')")
-
         new_r_cols = st.multiselect("Apply to columns", options=all_output_fields)
         new_r_exact = st.checkbox("Exact match (entire cell must equal the phrase)", value=True)
-
-        submitted = st.form_submit_button("Add Rule")
+        submitted = st.form_submit_button("Add Core Rule")
         if submitted and new_r_match:
-            display_rules.append({
-                "match": new_r_match,
-                "display_as": new_r_display,
-                "columns": new_r_cols,
-                "exact_match": new_r_exact,
+            core_display.append({
+                "match": new_r_match, "display_as": new_r_display,
+                "columns": new_r_cols, "exact_match": new_r_exact,
             })
-            edited = True
+            core_edited = True
 
-    if edited:
-        config["display_as_rules"] = display_rules
-        st.session_state.config = config
-        save_config(config)
-        st.success("Display As rules saved!")
+    if core_edited:
+        core_rules["display_as_rules"] = core_display
+        st.session_state.core_rules = core_rules
+        save_core_rules(core_rules)
+        st.success("Core Display As rules saved!")
+
+    # --- Session Rules (one-off) ---
+    st.divider()
+    st.subheader("Session Rules (one-off, current session only)")
+
+    session_display = st.session_state.session_display_rules
+
+    for i, rule in enumerate(session_display):
+        with st.expander(
+            f'[Session] "{rule.get("match", "")}" \u2192 "{rule.get("display_as", "")}"',
+            expanded=False,
+        ):
+            col1, col2 = st.columns(2)
+            with col1:
+                new_match = st.text_input("Match phrase", value=rule.get("match", ""), key=f"sda_match_{i}")
+            with col2:
+                new_display = st.text_input("Display as", value=rule.get("display_as", ""), key=f"sda_disp_{i}")
+            new_cols = st.multiselect(
+                "Apply to columns", options=all_output_fields,
+                default=[c for c in rule.get("columns", []) if c in all_output_fields],
+                key=f"sda_cols_{i}",
+            )
+            new_exact = st.checkbox("Exact match", value=rule.get("exact_match", True), key=f"sda_exact_{i}")
+
+            col_del, _ = st.columns([1, 3])
+            with col_del:
+                if st.button("Delete", key=f"sda_del_{i}"):
+                    session_display.pop(i)
+                    st.session_state.session_display_rules = session_display
+                    st.rerun()
+
+            updated = {"match": new_match, "display_as": new_display, "columns": new_cols, "exact_match": new_exact}
+            if updated != rule:
+                session_display[i] = updated
+                st.session_state.session_display_rules = session_display
+
+    with st.form("new_session_display_rule"):
+        snc1, snc2 = st.columns(2)
+        with snc1:
+            new_s_match = st.text_input("Match phrase")
+        with snc2:
+            new_s_display = st.text_input("Display as")
+        new_s_cols = st.multiselect("Apply to columns", options=all_output_fields, key="sda_new_cols")
+        new_s_exact = st.checkbox("Exact match", value=True, key="sda_new_exact")
+        submitted = st.form_submit_button("Add Session Rule")
+        if submitted and new_s_match:
+            session_display.append({
+                "match": new_s_match, "display_as": new_s_display,
+                "columns": new_s_cols, "exact_match": new_s_exact,
+            })
+            st.session_state.session_display_rules = session_display
+            st.rerun()
 
 
 # ---------------------------------------------------------------------------
@@ -614,7 +677,7 @@ elif page == "Alert Rules":
     st.title("Alert Rules")
     st.write(
         "Configure alerts that fire when case data meets certain conditions. "
-        "Cases with active alerts are highlighted in red on the Process Manifests page."
+        "**Core rules** persist across sessions. **Session rules** are one-off."
     )
 
     all_output_fields = sorted(set(
@@ -622,19 +685,10 @@ elif page == "Alert Rules":
     ))
 
     condition_types = [
-        "value_equals",
-        "value_contains",
-        "is_empty",
-        "is_not_empty",
-        "greater_than",
-        "less_than",
-        "is_negative",
-        "column_before",
-        "column_after",
-        "column_equals",
-        "column_not_equals",
-        "column_greater_than",
-        "column_less_than",
+        "value_equals", "value_contains", "is_empty", "is_not_empty",
+        "greater_than", "less_than", "is_negative",
+        "column_before", "column_after", "column_equals",
+        "column_not_equals", "column_greater_than", "column_less_than",
     ]
     condition_labels = {
         "value_equals": "Value equals",
@@ -657,105 +711,145 @@ elif page == "Alert Rules":
         "column_not_equals", "column_greater_than", "column_less_than",
     }
 
-    alert_rules = config.get("alert_rules", [])
+    def _render_alert_rule_editor(rule, key_prefix, i, all_fields):
+        """Render the form fields for a single alert rule. Returns the updated rule dict."""
+        new_msg = st.text_input("Alert message", value=rule.get("message", ""), key=f"{key_prefix}_msg_{i}")
 
-    edited = False
+        col1, col2 = st.columns(2)
+        with col1:
+            current_col = rule.get("column", "")
+            col_options = [""] + all_fields
+            col_idx = col_options.index(current_col) if current_col in col_options else 0
+            new_col = st.selectbox("Column", col_options, index=col_idx, key=f"{key_prefix}_col_{i}")
+        with col2:
+            current_cond = rule.get("condition_type", "value_equals")
+            cond_idx = condition_types.index(current_cond) if current_cond in condition_types else 0
+            new_cond = st.selectbox(
+                "Condition", condition_types, index=cond_idx,
+                format_func=lambda x: condition_labels.get(x, x),
+                key=f"{key_prefix}_cond_{i}",
+            )
 
-    for i, rule in enumerate(alert_rules):
+        new_val = ""
+        new_cc = ""
+        if new_cond in needs_value:
+            new_val = st.text_input("Value", value=str(rule.get("value", "")), key=f"{key_prefix}_val_{i}")
+        elif new_cond in needs_compare_column:
+            current_cc = rule.get("compare_column", "")
+            cc_options = [""] + all_fields
+            cc_idx = cc_options.index(current_cc) if current_cc in cc_options else 0
+            new_cc = st.selectbox("Compare to column", cc_options, index=cc_idx, key=f"{key_prefix}_cc_{i}")
+
+        return {
+            "message": new_msg, "column": new_col,
+            "condition_type": new_cond, "value": new_val, "compare_column": new_cc,
+        }
+
+    def _alert_expander_label(rule):
         cond_type = rule.get("condition_type", "")
         cond_label = condition_labels.get(cond_type, cond_type)
-        compare_col = rule.get("compare_column", "")
-        if cond_type in needs_compare_column and compare_col:
-            expander_label = f'{rule.get("message", "Alert")} — {rule.get("column", "?")} {cond_label} {compare_col}'
-        else:
-            expander_label = f'{rule.get("message", "Alert")} — {rule.get("column", "?")} {cond_label}'
+        cc = rule.get("compare_column", "")
+        label = f'{rule.get("message", "Alert")} \u2014 {rule.get("column", "?")} {cond_label}'
+        if cond_type in needs_compare_column and cc:
+            label += f" {cc}"
+        return label
 
-        with st.expander(expander_label, expanded=False):
-            new_msg = st.text_input("Alert message", value=rule.get("message", ""), key=f"al_msg_{i}")
+    # --- Core Rules (persistent) ---
+    core_rules = st.session_state.core_rules
+    core_alerts = core_rules.get("alert_rules", [])
 
-            col1, col2 = st.columns(2)
-            with col1:
-                current_col = rule.get("column", "")
-                col_options = [""] + all_output_fields
-                col_idx = col_options.index(current_col) if current_col in col_options else 0
-                new_col = st.selectbox("Column", col_options, index=col_idx, key=f"al_col_{i}")
+    st.subheader("Core Rules (persistent)")
+    core_edited = False
 
-            with col2:
-                current_cond = rule.get("condition_type", "value_equals")
-                cond_idx = condition_types.index(current_cond) if current_cond in condition_types else 0
-                new_cond = st.selectbox(
-                    "Condition",
-                    condition_types,
-                    index=cond_idx,
-                    format_func=lambda x: condition_labels.get(x, x),
-                    key=f"al_cond_{i}",
-                )
-
-            new_val = ""
-            new_compare_col = ""
-            if new_cond in needs_value:
-                new_val = st.text_input("Value", value=str(rule.get("value", "")), key=f"al_val_{i}")
-            elif new_cond in needs_compare_column:
-                current_cc = rule.get("compare_column", "")
-                cc_options = [""] + all_output_fields
-                cc_idx = cc_options.index(current_cc) if current_cc in cc_options else 0
-                new_compare_col = st.selectbox(
-                    "Compare to column", cc_options, index=cc_idx, key=f"al_cc_{i}"
-                )
+    for i, rule in enumerate(core_alerts):
+        with st.expander(_alert_expander_label(rule), expanded=False):
+            updated = _render_alert_rule_editor(rule, "cal", i, all_output_fields)
 
             col_del, _ = st.columns([1, 3])
             with col_del:
-                if st.button("Delete this rule", key=f"al_del_{i}"):
-                    alert_rules.pop(i)
-                    edited = True
+                if st.button("Delete", key=f"cal_del_{i}"):
+                    core_alerts.pop(i)
+                    core_edited = True
                     st.rerun()
 
-            updated_rule = {
-                "message": new_msg,
-                "column": new_col,
-                "condition_type": new_cond,
-                "value": new_val,
-                "compare_column": new_compare_col,
-            }
-            if updated_rule != rule:
-                alert_rules[i] = updated_rule
-                edited = True
+            if updated != rule:
+                core_alerts[i] = updated
+                core_edited = True
 
-    # Add new rule
-    st.subheader("Add New Alert Rule")
-    with st.form("new_alert_rule"):
+    st.subheader("Add Core Alert Rule")
+    with st.form("new_core_alert"):
         new_a_msg = st.text_input("Alert message (shown on hover)")
-
         ac1, ac2 = st.columns(2)
         with ac1:
             new_a_col = st.selectbox("Column to check", [""] + all_output_fields)
         with ac2:
             new_a_cond = st.selectbox(
-                "Condition type",
-                condition_types,
+                "Condition type", condition_types,
                 format_func=lambda x: condition_labels.get(x, x),
             )
-
         new_a_val = ""
         new_a_cc = ""
         if new_a_cond in needs_value:
             new_a_val = st.text_input("Value (for equals/contains/greater/less conditions)")
         elif new_a_cond in needs_compare_column:
-            new_a_cc = st.selectbox("Compare to column", [""] + all_output_fields, key="new_al_cc")
-
-        submitted = st.form_submit_button("Add Alert Rule")
+            new_a_cc = st.selectbox("Compare to column", [""] + all_output_fields, key="new_cal_cc")
+        submitted = st.form_submit_button("Add Core Alert Rule")
         if submitted and new_a_msg and new_a_col:
-            alert_rules.append({
-                "message": new_a_msg,
-                "column": new_a_col,
-                "condition_type": new_a_cond,
-                "value": new_a_val,
-                "compare_column": new_a_cc,
+            core_alerts.append({
+                "message": new_a_msg, "column": new_a_col,
+                "condition_type": new_a_cond, "value": new_a_val, "compare_column": new_a_cc,
             })
-            edited = True
+            core_edited = True
 
-    if edited:
-        config["alert_rules"] = alert_rules
-        st.session_state.config = config
-        save_config(config)
-        st.success("Alert rules saved!")
+    if core_edited:
+        core_rules["alert_rules"] = core_alerts
+        st.session_state.core_rules = core_rules
+        save_core_rules(core_rules)
+        st.success("Core Alert rules saved!")
+
+    # --- Session Rules (one-off) ---
+    st.divider()
+    st.subheader("Session Rules (one-off, current session only)")
+
+    session_alerts = st.session_state.session_alert_rules
+
+    for i, rule in enumerate(session_alerts):
+        with st.expander(f"[Session] {_alert_expander_label(rule)}", expanded=False):
+            updated = _render_alert_rule_editor(rule, "sal", i, all_output_fields)
+
+            col_del, _ = st.columns([1, 3])
+            with col_del:
+                if st.button("Delete", key=f"sal_del_{i}"):
+                    session_alerts.pop(i)
+                    st.session_state.session_alert_rules = session_alerts
+                    st.rerun()
+
+            if updated != rule:
+                session_alerts[i] = updated
+                st.session_state.session_alert_rules = session_alerts
+
+    with st.form("new_session_alert"):
+        new_sa_msg = st.text_input("Alert message")
+        sac1, sac2 = st.columns(2)
+        with sac1:
+            new_sa_col = st.selectbox("Column to check", [""] + all_output_fields, key="new_sal_col")
+        with sac2:
+            new_sa_cond = st.selectbox(
+                "Condition type", condition_types,
+                format_func=lambda x: condition_labels.get(x, x),
+                key="new_sal_cond",
+            )
+        new_sa_val = ""
+        new_sa_cc = ""
+        if new_sa_cond in needs_value:
+            new_sa_val = st.text_input("Value", key="new_sal_val")
+        elif new_sa_cond in needs_compare_column:
+            new_sa_cc = st.selectbox("Compare to column", [""] + all_output_fields, key="new_sal_cc")
+        submitted = st.form_submit_button("Add Session Alert Rule")
+        if submitted and new_sa_msg and new_sa_col:
+            session_alerts.append({
+                "message": new_sa_msg, "column": new_sa_col,
+                "condition_type": new_sa_cond, "value": new_sa_val, "compare_column": new_sa_cc,
+            })
+            st.session_state.session_alert_rules = session_alerts
+            st.rerun()
