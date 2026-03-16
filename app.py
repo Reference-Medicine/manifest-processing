@@ -249,7 +249,7 @@ if page == "Process Manifests":
                 st.session_state.core_rules = fresh_core
                 _, merged_alerts = get_merged_rules(
                     fresh_core,
-                    session_alert_rules=st.session_state.session_alert_rules,
+                    session_rules_alert=st.session_state.session_alert_rules,
                 )
                 st.session_state.case_alerts = evaluate_alerts(
                     st.session_state.cases_full_df, {"alert_rules": merged_alerts}
