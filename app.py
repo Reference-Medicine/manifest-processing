@@ -21,6 +21,31 @@ st.set_page_config(page_title="RM Manifest Processor", layout="wide")
 
 
 # ---------------------------------------------------------------------------
+# Utilities (must be defined before page code that calls them)
+# ---------------------------------------------------------------------------
+
+def df_to_excel_bytes(df):
+    """Convert a DataFrame to Excel bytes for download."""
+    buffer = io.BytesIO()
+    with pd.ExcelWriter(buffer, engine="xlsxwriter") as writer:
+        df.to_excel(writer, index=False, sheet_name="Sheet1")
+    return buffer.getvalue()
+
+
+def create_zip_download(cases_df, specimen_dfs):
+    """Create a ZIP file containing all export Excel files."""
+    import zipfile
+    zip_buffer = io.BytesIO()
+    with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zf:
+        if cases_df is not None and not cases_df.empty:
+            zf.writestr("Cases.xlsx", df_to_excel_bytes(cases_df))
+        for name, df in specimen_dfs.items():
+            if df is not None and not df.empty:
+                zf.writestr(f"{name}.xlsx", df_to_excel_bytes(df))
+    return zip_buffer.getvalue()
+
+
+# ---------------------------------------------------------------------------
 # Session state initialization
 # ---------------------------------------------------------------------------
 
@@ -383,28 +408,3 @@ elif page == "Specimen ID Rules":
         st.session_state.config = config
         save_config(config)
         st.success("Specimen ID rules saved!")
-
-
-# ---------------------------------------------------------------------------
-# Utilities
-# ---------------------------------------------------------------------------
-
-def df_to_excel_bytes(df):
-    """Convert a DataFrame to Excel bytes for download."""
-    buffer = io.BytesIO()
-    with pd.ExcelWriter(buffer, engine="xlsxwriter") as writer:
-        df.to_excel(writer, index=False, sheet_name="Sheet1")
-    return buffer.getvalue()
-
-
-def create_zip_download(cases_df, specimen_dfs):
-    """Create a ZIP file containing all export Excel files."""
-    import zipfile
-    zip_buffer = io.BytesIO()
-    with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zf:
-        if cases_df is not None and not cases_df.empty:
-            zf.writestr("Cases.xlsx", df_to_excel_bytes(cases_df))
-        for name, df in specimen_dfs.items():
-            if df is not None and not df.empty:
-                zf.writestr(f"{name}.xlsx", df_to_excel_bytes(df))
-    return zip_buffer.getvalue()

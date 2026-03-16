@@ -162,9 +162,37 @@ def time_diff_hours(start_str, end_str):
 # Ingestion
 # ---------------------------------------------------------------------------
 
-def read_manifest(file_path_or_buffer, sheet_name=0):
+def _get_string_dtype_columns(config, supplier):
+    """Get column names that must be read as strings to prevent pandas date coercion.
+
+    Columns typed as 'string' in the mapping (e.g. ICD O Code = '8380/3') would
+    otherwise be misinterpreted as dates by pandas' Excel reader.
+    """
+    supplier_key = supplier.lower()
+    force_str = set()
+    for m in config.get("column_mappings", []):
+        if m.get("type") == "string":
+            col = m.get(supplier_key)
+            if col:
+                force_str.add(col.strip())
+    return force_str
+
+
+def read_manifest(file_path_or_buffer, sheet_name=0, config=None, supplier=None):
     """Read an Excel manifest file into a DataFrame."""
-    df = pd.read_excel(file_path_or_buffer, sheet_name=sheet_name)
+    # First pass: read headers only so we know which columns exist
+    dtype_overrides = {}
+    if config and supplier:
+        force_str = _get_string_dtype_columns(config, supplier)
+        # We need to peek at column names first
+        preview = pd.read_excel(file_path_or_buffer, sheet_name=sheet_name, nrows=0)
+        if hasattr(file_path_or_buffer, "seek"):
+            file_path_or_buffer.seek(0)
+        for col in preview.columns:
+            if str(col).strip() in force_str:
+                dtype_overrides[col] = str
+
+    df = pd.read_excel(file_path_or_buffer, sheet_name=sheet_name, dtype=dtype_overrides or None)
     # Strip whitespace from column names
     df.columns = [str(c).strip() for c in df.columns]
     return df
@@ -371,7 +399,7 @@ def process_manifest(files, supplier, config):
     # Read and combine input files
     dfs = []
     for f in files:
-        df = read_manifest(f)
+        df = read_manifest(f, config=config, supplier=supplier)
         unrecognized = detect_unrecognized_columns(df, config, supplier)
         all_unrecognized.extend(unrecognized)
         if unrecognized:
