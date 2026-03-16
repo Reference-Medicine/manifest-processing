@@ -18,6 +18,7 @@ from processing_engine import (
     get_merged_rules,
     process_manifest,
     evaluate_alerts,
+    apply_display_as_rules,
     CONFIG_PATH,
 )
 
@@ -193,7 +194,11 @@ if page == "Process Manifests":
     else:
         uploaded_files = []
 
-    if uploaded_files and st.button("Process Manifests", type="primary"):
+    btn_col1, btn_col2, _ = st.columns([1, 1, 4])
+    process_clicked = btn_col1.button("Process Manifests", type="primary") if uploaded_files else False
+    refresh_clicked = btn_col2.button("Refresh", help="Re-apply display-as rules and re-evaluate alert rules (use after adding/editing rules)") if (st.session_state.get("cases_full_df") is not None and not getattr(st.session_state.get("cases_full_df"), "empty", True)) else False
+
+    if process_clicked:
         with st.spinner("Processing..."):
             cases_df, specimen_dfs, wo_summary, warnings, unrecognized, case_alerts, cases_full_df = process_manifest(
                 uploaded_files, supplier, config,
@@ -219,6 +224,32 @@ if page == "Process Manifests":
 
         st.success("Processing complete!")
 
+    if refresh_clicked:
+        fresh_core = load_core_rules()
+        st.session_state.core_rules = fresh_core
+        merged_display, merged_alerts = get_merged_rules(
+            fresh_core,
+            session_rules_display=st.session_state.session_display_rules,
+            session_rules_alert=st.session_state.session_alert_rules,
+        )
+        # Re-apply display-as rules
+        display_config = {"display_as_rules": merged_display}
+        st.session_state.cases_full_df = apply_display_as_rules(
+            st.session_state.cases_full_df, display_config
+        )
+        st.session_state.cases_df = apply_display_as_rules(
+            st.session_state.cases_df, display_config
+        )
+        for key in st.session_state.specimen_dfs:
+            st.session_state.specimen_dfs[key] = apply_display_as_rules(
+                st.session_state.specimen_dfs[key], display_config
+            )
+        # Re-evaluate alerts
+        st.session_state.case_alerts = evaluate_alerts(
+            st.session_state.cases_full_df, {"alert_rules": merged_alerts}
+        )
+        st.rerun()
+
     # Display results
     if st.session_state.processed:
         # Warnings
@@ -229,32 +260,18 @@ if page == "Process Manifests":
 
         # Unrecognized columns
         if st.session_state.unrecognized:
-            st.subheader("Unrecognized Columns")
-            st.write(
-                "The following columns were found in the import file but are not mapped. "
-                "They have been added to the Column Mapping page for you to configure."
-            )
-            for c in st.session_state.unrecognized:
-                st.code(c)
+            with st.expander("Unrecognized Columns", expanded=False):
+                st.write(
+                    "The following columns were found in the import file but are not mapped. "
+                    "They have been added to the Column Mapping page for you to configure."
+                )
+                for c in st.session_state.unrecognized:
+                    st.code(c)
 
         # WO Summary
         if st.session_state.wo_summary is not None and not st.session_state.wo_summary.empty:
             st.subheader("Work Order Summary")
             st.dataframe(st.session_state.wo_summary, use_container_width=True, hide_index=True)
-
-        # Refresh Alerts button — re-evaluates alert rules against current cases
-        if st.session_state.cases_full_df is not None and not st.session_state.cases_full_df.empty:
-            if st.button("Refresh Alerts", help="Re-evaluate alert rules (use after adding/editing rules)"):
-                fresh_core = load_core_rules()
-                st.session_state.core_rules = fresh_core
-                _, merged_alerts = get_merged_rules(
-                    fresh_core,
-                    session_rules_alert=st.session_state.session_alert_rules,
-                )
-                st.session_state.case_alerts = evaluate_alerts(
-                    st.session_state.cases_full_df, {"alert_rules": merged_alerts}
-                )
-                st.rerun()
 
         # Alerts Summary Table
         case_alerts = st.session_state.case_alerts
