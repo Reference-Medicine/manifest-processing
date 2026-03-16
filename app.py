@@ -29,12 +29,30 @@ st.set_page_config(page_title="RM Manifest Processor", layout="wide")
 # Utilities (must be defined before page code that calls them)
 # ---------------------------------------------------------------------------
 
-def render_cases_with_alerts(df, case_alerts):
-    """Render a Cases DataFrame as an HTML table with alert rows highlighted in light red.
+def _cell_html(val_str, original, html_mod):
+    """Render a single table cell, adding a tooltip if display-as changed the value."""
+    escaped = html_mod.escape(val_str)
+    if original is not None:
+        orig_escaped = html_mod.escape(str(original))
+        return (
+            f'<td class="display-as-tooltip" title="Original: {orig_escaped}">'
+            f'{escaped}</td>'
+        )
+    return f"<td>{escaped}</td>"
 
-    Rows with alerts get a light-red background and a tooltip listing the active alerts.
+
+def render_html_table(df, case_alerts=None, display_originals=None):
+    """Render a DataFrame as an HTML table.
+
+    Supports alert-row highlighting, alert tooltips on the first cell,
+    and display-as tooltips on any cell whose value was changed by a rule.
     """
     import html as html_mod
+
+    if case_alerts is None:
+        case_alerts = {}
+    if display_originals is None:
+        display_originals = {}
 
     styles = """
     <style>
@@ -51,6 +69,7 @@ def render_cases_with_alerts(df, case_alerts):
         bottom: 125%; left: 0; min-width: 280px; font-size: 12px;
         box-shadow: 0 2px 8px rgba(0,0,0,0.3); }
     .alert-tooltip:hover .alert-text { visibility: visible; }
+    .display-as-tooltip { cursor: help; background-color: #e8f4e8; }
     </style>
     """
 
@@ -59,27 +78,32 @@ def render_cases_with_alerts(df, case_alerts):
     rows_html = []
     for idx, row in df.iterrows():
         alerts = case_alerts.get(idx, [])
-        if alerts:
-            tooltip_content = "<br>".join(html_mod.escape(a) for a in alerts)
-            tooltip = (
-                f'<span class="alert-text">'
-                f'<strong>Alerts ({len(alerts)}):</strong><br>{tooltip_content}</span>'
-            )
-            # Wrap the first cell content with tooltip
-            cells = []
-            for i, col in enumerate(df.columns):
-                val = html_mod.escape(str(row[col]) if pd.notna(row[col]) else "")
-                if i == 0:
-                    cells.append(f'<td class="alert-tooltip">{val}{tooltip}</td>')
+        row_class = ' class="alert-row"' if alerts else ""
+        cells = []
+        for i, col in enumerate(df.columns):
+            val = str(row[col]) if pd.notna(row[col]) else ""
+            original = display_originals.get((idx, col))
+
+            if alerts and i == 0:
+                # First cell of alert row gets the alert tooltip
+                tooltip_content = "<br>".join(html_mod.escape(a) for a in alerts)
+                alert_span = (
+                    f'<span class="alert-text">'
+                    f'<strong>Alerts ({len(alerts)}):</strong><br>{tooltip_content}</span>'
+                )
+                escaped = html_mod.escape(val)
+                if original is not None:
+                    orig_escaped = html_mod.escape(str(original))
+                    cells.append(
+                        f'<td class="alert-tooltip display-as-tooltip" '
+                        f'title="Original: {orig_escaped}">{escaped}{alert_span}</td>'
+                    )
                 else:
-                    cells.append(f"<td>{val}</td>")
-            rows_html.append(f'<tr class="alert-row">{"".join(cells)}</tr>')
-        else:
-            cells = "".join(
-                f"<td>{html_mod.escape(str(row[c]) if pd.notna(row[c]) else '')}</td>"
-                for c in df.columns
-            )
-            rows_html.append(f"<tr>{cells}</tr>")
+                    cells.append(f'<td class="alert-tooltip">{escaped}{alert_span}</td>')
+            else:
+                cells.append(_cell_html(val, original, html_mod))
+
+        rows_html.append(f"<tr{row_class}>{''.join(cells)}</tr>")
 
     table = f"""
     {styles}
@@ -91,6 +115,11 @@ def render_cases_with_alerts(df, case_alerts):
     </div>
     """
     return table
+
+
+def render_cases_with_alerts(df, case_alerts, display_originals=None):
+    """Render a Cases DataFrame as an HTML table with alert rows highlighted in light red."""
+    return render_html_table(df, case_alerts=case_alerts, display_originals=display_originals)
 
 
 def df_to_excel_bytes(df):
@@ -143,6 +172,8 @@ def init_state():
         st.session_state.session_display_rules = []
     if "session_alert_rules" not in st.session_state:
         st.session_state.session_alert_rules = []
+    if "display_originals" not in st.session_state:
+        st.session_state.display_originals = {}
 
 
 init_state()
@@ -200,7 +231,7 @@ if page == "Process Manifests":
 
     if process_clicked:
         with st.spinner("Processing..."):
-            cases_df, specimen_dfs, wo_summary, warnings, unrecognized, case_alerts, cases_full_df = process_manifest(
+            cases_df, specimen_dfs, wo_summary, warnings, unrecognized, case_alerts, cases_full_df, display_originals = process_manifest(
                 uploaded_files, supplier, config,
                 session_display_rules=st.session_state.session_display_rules,
                 session_alert_rules=st.session_state.session_alert_rules,
@@ -213,6 +244,7 @@ if page == "Process Manifests":
             st.session_state.unrecognized = unrecognized
             st.session_state.case_alerts = case_alerts
             st.session_state.cases_full_df = cases_full_df
+            st.session_state.display_originals = display_originals
             st.session_state.processed = True
 
             # Auto-add unrecognized columns to config
@@ -234,16 +266,21 @@ if page == "Process Manifests":
         )
         # Re-apply display-as rules
         display_config = {"display_as_rules": merged_display}
-        st.session_state.cases_full_df = apply_display_as_rules(
+        display_originals = {}
+        st.session_state.cases_full_df, orig = apply_display_as_rules(
             st.session_state.cases_full_df, display_config
         )
-        st.session_state.cases_df = apply_display_as_rules(
+        display_originals["cases_full"] = orig
+        st.session_state.cases_df, orig = apply_display_as_rules(
             st.session_state.cases_df, display_config
         )
+        display_originals["cases"] = orig
         for key in st.session_state.specimen_dfs:
-            st.session_state.specimen_dfs[key] = apply_display_as_rules(
+            st.session_state.specimen_dfs[key], orig = apply_display_as_rules(
                 st.session_state.specimen_dfs[key], display_config
             )
+            display_originals[key] = orig
+        st.session_state.display_originals = display_originals
         # Re-evaluate alerts
         st.session_state.case_alerts = evaluate_alerts(
             st.session_state.cases_full_df, {"alert_rules": merged_alerts}
@@ -296,8 +333,12 @@ if page == "Process Manifests":
             cases_df = st.session_state.cases_df
             case_alerts = st.session_state.case_alerts
 
-            if case_alerts:
-                st.markdown(render_cases_with_alerts(cases_df, case_alerts), unsafe_allow_html=True)
+            cases_originals = st.session_state.get("display_originals", {}).get("cases", {})
+            if case_alerts or cases_originals:
+                st.markdown(
+                    render_cases_with_alerts(cases_df, case_alerts, display_originals=cases_originals),
+                    unsafe_allow_html=True,
+                )
             else:
                 st.dataframe(cases_df, use_container_width=True, hide_index=True)
 
@@ -312,7 +353,14 @@ if page == "Process Manifests":
         for spec_name, spec_df in st.session_state.specimen_dfs.items():
             if spec_df is not None and not spec_df.empty:
                 st.subheader(f"{spec_name} Export")
-                st.dataframe(spec_df, use_container_width=True, hide_index=True)
+                spec_originals = st.session_state.get("display_originals", {}).get(spec_name, {})
+                if spec_originals:
+                    st.markdown(
+                        render_html_table(spec_df, display_originals=spec_originals),
+                        unsafe_allow_html=True,
+                    )
+                else:
+                    st.dataframe(spec_df, use_container_width=True, hide_index=True)
                 st.download_button(
                     f"Download {spec_name}.xlsx",
                     data=df_to_excel_bytes(spec_df),

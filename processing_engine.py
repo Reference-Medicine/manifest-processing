@@ -558,10 +558,14 @@ def process_manifest(files, supplier, config,
 
     # Apply merged display-as rules to all DataFrames
     display_config = {"display_as_rules": merged_display}
-    cases_full_df = apply_display_as_rules(cases_full_df, display_config)
-    cases_df = apply_display_as_rules(cases_df, display_config)
+    display_originals = {}
+    cases_full_df, orig = apply_display_as_rules(cases_full_df, display_config)
+    display_originals["cases_full"] = orig
+    cases_df, orig = apply_display_as_rules(cases_df, display_config)
+    display_originals["cases"] = orig
     for key in specimen_dfs:
-        specimen_dfs[key] = apply_display_as_rules(specimen_dfs[key], display_config)
+        specimen_dfs[key], orig = apply_display_as_rules(specimen_dfs[key], display_config)
+        display_originals[key] = orig
 
     # Evaluate merged alert rules on full cases data (all columns, not just export)
     alert_config = {"alert_rules": merged_alerts}
@@ -570,7 +574,7 @@ def process_manifest(files, supplier, config,
     # WO Summary
     wo_summary = build_wo_summary(cases_df, specimen_dfs)
 
-    return cases_df, specimen_dfs, wo_summary, warnings, list(set(all_unrecognized)), case_alerts, cases_full_df
+    return cases_df, specimen_dfs, wo_summary, warnings, list(set(all_unrecognized)), case_alerts, cases_full_df, display_originals
 
 
 # ---------------------------------------------------------------------------
@@ -587,11 +591,14 @@ def apply_display_as_rules(df, config):
       - exact_match: bool - if True, the entire cell must equal `match`;
                      if False, any occurrence of `match` within the cell is replaced.
 
-    Returns a new DataFrame with substitutions applied.
+    Returns a tuple of (new DataFrame with substitutions applied, dict of originals).
+    The originals dict maps (row_index, column_name) -> original_value for every cell
+    that was changed.
     """
     rules = config.get("display_as_rules", [])
+    originals = {}
     if not rules:
-        return df
+        return df, originals
 
     df = df.copy()
     for rule in rules:
@@ -606,17 +613,17 @@ def apply_display_as_rules(df, config):
         for col in columns:
             if col not in df.columns:
                 continue
-            if exact:
-                df[col] = df[col].apply(
-                    lambda v, m=match_val, r=replace_val: r if str(v).strip() == m else v
-                )
-            else:
-                df[col] = df[col].apply(
-                    lambda v, m=match_val, r=replace_val: (
-                        str(v).replace(m, r) if pd.notna(v) and m in str(v) else v
-                    )
-                )
-    return df
+            for idx in df.index:
+                v = df.at[idx, col]
+                if exact:
+                    if str(v).strip() == match_val:
+                        originals.setdefault((idx, col), v)
+                        df.at[idx, col] = replace_val
+                else:
+                    if pd.notna(v) and match_val in str(v):
+                        originals.setdefault((idx, col), v)
+                        df.at[idx, col] = str(v).replace(match_val, replace_val)
+    return df, originals
 
 
 # ---------------------------------------------------------------------------
