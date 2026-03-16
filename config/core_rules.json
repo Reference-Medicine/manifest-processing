@@ -18,6 +18,12 @@
       "column": "Stage",
       "condition": "is_empty",
       "message": "Missing Stage"
+    },
+    {
+      "column": "Date/time of operation",
+      "condition": "column_before",
+      "compare_column": "Date/time of blood collection",
+      "message": "Operation date/time is before blood collection date/time."
     }
   ]
 }
