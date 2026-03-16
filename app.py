@@ -24,6 +24,70 @@ st.set_page_config(page_title="RM Manifest Processor", layout="wide")
 # Utilities (must be defined before page code that calls them)
 # ---------------------------------------------------------------------------
 
+def render_cases_with_alerts(df, case_alerts):
+    """Render a Cases DataFrame as an HTML table with alert rows highlighted in light red.
+
+    Rows with alerts get a light-red background and a tooltip listing the active alerts.
+    """
+    import html as html_mod
+
+    styles = """
+    <style>
+    .cases-table { border-collapse: collapse; width: 100%; font-size: 13px; }
+    .cases-table th { background: #f0f2f6; padding: 6px 10px; border: 1px solid #ddd;
+                       text-align: left; position: sticky; top: 0; }
+    .cases-table td { padding: 6px 10px; border: 1px solid #ddd; white-space: nowrap; }
+    .cases-table tr.alert-row { background-color: #ffe0e0; }
+    .cases-table tr.alert-row:hover { background-color: #ffc8c8; }
+    .cases-table tr:not(.alert-row):hover { background-color: #f5f5f5; }
+    .alert-tooltip { position: relative; cursor: help; }
+    .alert-tooltip .alert-text { visibility: hidden; background-color: #333; color: #fff;
+        padding: 8px 12px; border-radius: 6px; position: absolute; z-index: 1000;
+        bottom: 125%; left: 0; min-width: 280px; font-size: 12px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.3); }
+    .alert-tooltip:hover .alert-text { visibility: visible; }
+    </style>
+    """
+
+    header = "<tr>" + "".join(f"<th>{html_mod.escape(str(c))}</th>" for c in df.columns) + "</tr>"
+
+    rows_html = []
+    for idx, row in df.iterrows():
+        alerts = case_alerts.get(idx, [])
+        if alerts:
+            tooltip_content = "<br>".join(html_mod.escape(a) for a in alerts)
+            tooltip = (
+                f'<span class="alert-text">'
+                f'<strong>Alerts ({len(alerts)}):</strong><br>{tooltip_content}</span>'
+            )
+            # Wrap the first cell content with tooltip
+            cells = []
+            for i, col in enumerate(df.columns):
+                val = html_mod.escape(str(row[col]) if pd.notna(row[col]) else "")
+                if i == 0:
+                    cells.append(f'<td class="alert-tooltip">{val}{tooltip}</td>')
+                else:
+                    cells.append(f"<td>{val}</td>")
+            rows_html.append(f'<tr class="alert-row">{"".join(cells)}</tr>')
+        else:
+            cells = "".join(
+                f"<td>{html_mod.escape(str(row[c]) if pd.notna(row[c]) else '')}</td>"
+                for c in df.columns
+            )
+            rows_html.append(f"<tr>{cells}</tr>")
+
+    table = f"""
+    {styles}
+    <div style="overflow-x: auto; max-height: 600px; overflow-y: auto;">
+    <table class="cases-table">
+    <thead>{header}</thead>
+    <tbody>{"".join(rows_html)}</tbody>
+    </table>
+    </div>
+    """
+    return table
+
+
 def df_to_excel_bytes(df):
     """Convert a DataFrame to Excel bytes for download."""
     buffer = io.BytesIO()
@@ -64,6 +128,8 @@ def init_state():
         st.session_state.warnings = []
     if "unrecognized" not in st.session_state:
         st.session_state.unrecognized = []
+    if "case_alerts" not in st.session_state:
+        st.session_state.case_alerts = {}
 
 
 init_state()
@@ -80,6 +146,8 @@ page = st.sidebar.radio("Navigate", [
     "Column Mapping",
     "Export Templates",
     "Specimen ID Rules",
+    "Display As Rules",
+    "Alert Rules",
 ])
 
 
@@ -115,7 +183,7 @@ if page == "Process Manifests":
 
     if uploaded_files and st.button("Process Manifests", type="primary"):
         with st.spinner("Processing..."):
-            cases_df, specimen_dfs, wo_summary, warnings, unrecognized = process_manifest(
+            cases_df, specimen_dfs, wo_summary, warnings, unrecognized, case_alerts = process_manifest(
                 uploaded_files, supplier, config
             )
 
@@ -124,6 +192,7 @@ if page == "Process Manifests":
             st.session_state.wo_summary = wo_summary
             st.session_state.warnings = warnings
             st.session_state.unrecognized = unrecognized
+            st.session_state.case_alerts = case_alerts
             st.session_state.processed = True
 
             # Auto-add unrecognized columns to config
@@ -158,13 +227,23 @@ if page == "Process Manifests":
             st.subheader("Work Order Summary")
             st.dataframe(st.session_state.wo_summary, use_container_width=True, hide_index=True)
 
-        # Cases preview & download
+        # Cases preview & download (with alert highlighting)
         if st.session_state.cases_df is not None and not st.session_state.cases_df.empty:
             st.subheader("Cases Export")
-            st.dataframe(st.session_state.cases_df, use_container_width=True, hide_index=True)
+            cases_df = st.session_state.cases_df
+            case_alerts = st.session_state.case_alerts
+
+            if case_alerts:
+                st.write(f"**{len(case_alerts)} case(s) with alerts** — highlighted rows have active alerts.")
+
+                # Build styled HTML table with alert highlighting and hover tooltips
+                st.markdown(render_cases_with_alerts(cases_df, case_alerts), unsafe_allow_html=True)
+            else:
+                st.dataframe(cases_df, use_container_width=True, hide_index=True)
+
             st.download_button(
                 "Download Cases.xlsx",
-                data=df_to_excel_bytes(st.session_state.cases_df),
+                data=df_to_excel_bytes(cases_df),
                 file_name="Cases.xlsx",
                 mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
             )
@@ -408,3 +487,212 @@ elif page == "Specimen ID Rules":
         st.session_state.config = config
         save_config(config)
         st.success("Specimen ID rules saved!")
+
+
+# ---------------------------------------------------------------------------
+# Page: Display As Rules
+# ---------------------------------------------------------------------------
+
+elif page == "Display As Rules":
+    st.title("Display As Rules")
+    st.write(
+        'Substitute cell values before export. For example, display "M" as "Male". '
+        "Rules are applied after mapping and calculations."
+    )
+
+    all_output_fields = sorted(set(
+        m["output"] for m in config["column_mappings"] if m.get("output")
+    ))
+
+    display_rules = config.get("display_as_rules", [])
+
+    edited = False
+
+    for i, rule in enumerate(display_rules):
+        with st.expander(
+            f'"{rule.get("match", "")}" → "{rule.get("display_as", "")}" '
+            f'({len(rule.get("columns", []))} columns)',
+            expanded=False,
+        ):
+            col1, col2 = st.columns(2)
+            with col1:
+                new_match = st.text_input("Match phrase", value=rule.get("match", ""), key=f"da_match_{i}")
+            with col2:
+                new_display = st.text_input("Display as", value=rule.get("display_as", ""), key=f"da_disp_{i}")
+
+            new_cols = st.multiselect(
+                "Apply to columns",
+                options=all_output_fields,
+                default=[c for c in rule.get("columns", []) if c in all_output_fields],
+                key=f"da_cols_{i}",
+            )
+
+            new_exact = st.checkbox(
+                "Exact match (entire cell must equal the phrase)",
+                value=rule.get("exact_match", True),
+                key=f"da_exact_{i}",
+            )
+
+            col_del, _ = st.columns([1, 3])
+            with col_del:
+                if st.button("Delete this rule", key=f"da_del_{i}"):
+                    display_rules.pop(i)
+                    edited = True
+                    st.rerun()
+
+            updated_rule = {
+                "match": new_match,
+                "display_as": new_display,
+                "columns": new_cols,
+                "exact_match": new_exact,
+            }
+            if updated_rule != rule:
+                display_rules[i] = updated_rule
+                edited = True
+
+    # Add new rule
+    st.subheader("Add New Rule")
+    with st.form("new_display_as_rule"):
+        nc1, nc2 = st.columns(2)
+        with nc1:
+            new_r_match = st.text_input("Match phrase (e.g. 'M')")
+        with nc2:
+            new_r_display = st.text_input("Display as (e.g. 'Male')")
+
+        new_r_cols = st.multiselect("Apply to columns", options=all_output_fields)
+        new_r_exact = st.checkbox("Exact match (entire cell must equal the phrase)", value=True)
+
+        submitted = st.form_submit_button("Add Rule")
+        if submitted and new_r_match:
+            display_rules.append({
+                "match": new_r_match,
+                "display_as": new_r_display,
+                "columns": new_r_cols,
+                "exact_match": new_r_exact,
+            })
+            edited = True
+
+    if edited:
+        config["display_as_rules"] = display_rules
+        st.session_state.config = config
+        save_config(config)
+        st.success("Display As rules saved!")
+
+
+# ---------------------------------------------------------------------------
+# Page: Alert Rules
+# ---------------------------------------------------------------------------
+
+elif page == "Alert Rules":
+    st.title("Alert Rules")
+    st.write(
+        "Configure alerts that fire when case data meets certain conditions. "
+        "Cases with active alerts are highlighted in red on the Process Manifests page."
+    )
+
+    all_output_fields = sorted(set(
+        m["output"] for m in config["column_mappings"] if m.get("output")
+    ))
+
+    condition_types = [
+        "value_equals",
+        "value_contains",
+        "is_empty",
+        "is_not_empty",
+        "greater_than",
+        "less_than",
+        "is_negative",
+    ]
+    condition_labels = {
+        "value_equals": "Value equals",
+        "value_contains": "Value contains",
+        "is_empty": "Is empty/blank",
+        "is_not_empty": "Is not empty",
+        "greater_than": "Greater than (numeric)",
+        "less_than": "Less than (numeric)",
+        "is_negative": "Is negative (numeric)",
+    }
+    needs_value = {"value_equals", "value_contains", "greater_than", "less_than"}
+
+    alert_rules = config.get("alert_rules", [])
+
+    edited = False
+
+    for i, rule in enumerate(alert_rules):
+        cond_label = condition_labels.get(rule.get("condition_type", ""), rule.get("condition_type", ""))
+        with st.expander(
+            f'{rule.get("message", "Alert")} — {rule.get("column", "?")} {cond_label}',
+            expanded=False,
+        ):
+            new_msg = st.text_input("Alert message", value=rule.get("message", ""), key=f"al_msg_{i}")
+
+            col1, col2 = st.columns(2)
+            with col1:
+                current_col = rule.get("column", "")
+                col_options = [""] + all_output_fields
+                col_idx = col_options.index(current_col) if current_col in col_options else 0
+                new_col = st.selectbox("Column", col_options, index=col_idx, key=f"al_col_{i}")
+
+            with col2:
+                current_cond = rule.get("condition_type", "value_equals")
+                cond_idx = condition_types.index(current_cond) if current_cond in condition_types else 0
+                new_cond = st.selectbox(
+                    "Condition",
+                    condition_types,
+                    index=cond_idx,
+                    format_func=lambda x: condition_labels.get(x, x),
+                    key=f"al_cond_{i}",
+                )
+
+            new_val = ""
+            if new_cond in needs_value:
+                new_val = st.text_input("Value", value=str(rule.get("value", "")), key=f"al_val_{i}")
+
+            col_del, _ = st.columns([1, 3])
+            with col_del:
+                if st.button("Delete this rule", key=f"al_del_{i}"):
+                    alert_rules.pop(i)
+                    edited = True
+                    st.rerun()
+
+            updated_rule = {
+                "message": new_msg,
+                "column": new_col,
+                "condition_type": new_cond,
+                "value": new_val,
+            }
+            if updated_rule != rule:
+                alert_rules[i] = updated_rule
+                edited = True
+
+    # Add new rule
+    st.subheader("Add New Alert Rule")
+    with st.form("new_alert_rule"):
+        new_a_msg = st.text_input("Alert message (shown on hover)")
+
+        ac1, ac2 = st.columns(2)
+        with ac1:
+            new_a_col = st.selectbox("Column to check", [""] + all_output_fields)
+        with ac2:
+            new_a_cond = st.selectbox(
+                "Condition type",
+                condition_types,
+                format_func=lambda x: condition_labels.get(x, x),
+            )
+        new_a_val = st.text_input("Value (for equals/contains/greater/less conditions)")
+
+        submitted = st.form_submit_button("Add Alert Rule")
+        if submitted and new_a_msg and new_a_col:
+            alert_rules.append({
+                "message": new_a_msg,
+                "column": new_a_col,
+                "condition_type": new_a_cond,
+                "value": new_a_val,
+            })
+            edited = True
+
+    if edited:
+        config["alert_rules"] = alert_rules
+        st.session_state.config = config
+        save_config(config)
+        st.success("Alert rules saved!")

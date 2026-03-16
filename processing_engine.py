@@ -507,10 +507,140 @@ def process_manifest(files, supplier, config):
         if hrs_formalin is not None and isinstance(hrs_formalin, (int, float)) and hrs_formalin < 0:
             warnings.append(f"Donor {donor}: Negative formalin time ({hrs_formalin} hrs).")
 
+    # Apply display-as rules to all DataFrames
+    cases_df = apply_display_as_rules(cases_df, config)
+    for key in specimen_dfs:
+        specimen_dfs[key] = apply_display_as_rules(specimen_dfs[key], config)
+
+    # Evaluate alerts on cases
+    case_alerts = evaluate_alerts(cases_df, config)
+
     # WO Summary
     wo_summary = build_wo_summary(cases_df, specimen_dfs)
 
-    return cases_df, specimen_dfs, wo_summary, warnings, list(set(all_unrecognized))
+    return cases_df, specimen_dfs, wo_summary, warnings, list(set(all_unrecognized)), case_alerts
+
+
+# ---------------------------------------------------------------------------
+# Display As rules
+# ---------------------------------------------------------------------------
+
+def apply_display_as_rules(df, config):
+    """Apply 'display as' substitution rules to a DataFrame.
+
+    Each rule has:
+      - match: the phrase to look for
+      - display_as: what to replace it with
+      - columns: list of output column names the rule applies to
+      - exact_match: bool - if True, the entire cell must equal `match`;
+                     if False, any occurrence of `match` within the cell is replaced.
+
+    Returns a new DataFrame with substitutions applied.
+    """
+    rules = config.get("display_as_rules", [])
+    if not rules:
+        return df
+
+    df = df.copy()
+    for rule in rules:
+        match_val = rule.get("match", "")
+        replace_val = rule.get("display_as", "")
+        columns = rule.get("columns", [])
+        exact = rule.get("exact_match", True)
+
+        if not match_val or not columns:
+            continue
+
+        for col in columns:
+            if col not in df.columns:
+                continue
+            if exact:
+                df[col] = df[col].apply(
+                    lambda v, m=match_val, r=replace_val: r if str(v).strip() == m else v
+                )
+            else:
+                df[col] = df[col].apply(
+                    lambda v, m=match_val, r=replace_val: (
+                        str(v).replace(m, r) if pd.notna(v) and m in str(v) else v
+                    )
+                )
+    return df
+
+
+# ---------------------------------------------------------------------------
+# Alert rules
+# ---------------------------------------------------------------------------
+
+def evaluate_alert_condition(row, rule):
+    """Evaluate a single alert rule against a row. Returns True if the alert fires."""
+    condition_type = rule.get("condition_type", "value_equals")
+    column = rule.get("column")
+    value = rule.get("value")
+
+    if condition_type == "value_equals":
+        if column and column in row:
+            return str(row[column]).strip() == str(value).strip()
+
+    elif condition_type == "value_contains":
+        if column and column in row:
+            cell = row[column]
+            if cell is None or (isinstance(cell, float) and pd.isna(cell)):
+                return False
+            return str(value) in str(cell)
+
+    elif condition_type == "is_empty":
+        if column and column in row:
+            cell = row[column]
+            return cell is None or (isinstance(cell, float) and pd.isna(cell)) or str(cell).strip() == ""
+
+    elif condition_type == "is_not_empty":
+        if column and column in row:
+            cell = row[column]
+            return not (cell is None or (isinstance(cell, float) and pd.isna(cell)) or str(cell).strip() == "")
+
+    elif condition_type == "greater_than":
+        if column and column in row:
+            try:
+                return float(str(row[column]).replace(",", ".")) > float(value)
+            except (ValueError, TypeError):
+                return False
+
+    elif condition_type == "less_than":
+        if column and column in row:
+            try:
+                return float(str(row[column]).replace(",", ".")) < float(value)
+            except (ValueError, TypeError):
+                return False
+
+    elif condition_type == "is_negative":
+        if column and column in row:
+            try:
+                return float(str(row[column]).replace(",", ".")) < 0
+            except (ValueError, TypeError):
+                return False
+
+    return False
+
+
+def evaluate_alerts(df, config):
+    """Evaluate all alert rules against every row in a DataFrame.
+
+    Returns a dict: {row_index: [list of alert message strings]}
+    """
+    rules = config.get("alert_rules", [])
+    if not rules:
+        return {}
+
+    alerts_by_row = {}
+    for idx, row in df.iterrows():
+        row_alerts = []
+        for rule in rules:
+            if evaluate_alert_condition(row, rule):
+                msg = rule.get("message", "Alert triggered")
+                row_alerts.append(msg)
+        if row_alerts:
+            alerts_by_row[idx] = row_alerts
+    return alerts_by_row
 
 
 def build_wo_summary(cases_df, specimen_dfs):
