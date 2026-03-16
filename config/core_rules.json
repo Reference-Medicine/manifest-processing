@@ -1,4 +1,11 @@
 {
-  "display_as_rules": [],
+  "display_as_rules": [
+    {
+      "match_phrase": "White",
+      "display_as": "White or Caucasian",
+      "exact_match": true,
+      "columns": ["Race"]
+    }
+  ],
   "alert_rules": []
 }
