@@ -417,21 +417,23 @@ def process_manifest(files, supplier, config):
         mapped_rows.append(mapped)
 
     if not mapped_rows:
-        return pd.DataFrame(), {}, pd.DataFrame(), ["No data rows found"], all_unrecognized
+        return pd.DataFrame(), {}, pd.DataFrame(), ["No data rows found"], all_unrecognized, {}, pd.DataFrame()
 
     all_mapped_df = pd.DataFrame(mapped_rows)
 
-    # Build cases (deduplicated by Donor ID)
-    export_templates = config.get("export_templates", {})
-    cases_cols = export_templates.get("Cases", {}).get("columns", [])
-    available_cases_cols = [c for c in cases_cols if c in all_mapped_df.columns]
-
+    # Build full cases (deduplicated by Donor ID, keeping ALL columns for alert evaluation)
     if "Donor ID" in all_mapped_df.columns:
-        cases_df = all_mapped_df[available_cases_cols].drop_duplicates(
+        cases_full_df = all_mapped_df.drop_duplicates(
             subset=["Donor ID"], keep="first"
         ).reset_index(drop=True)
     else:
-        cases_df = all_mapped_df[available_cases_cols].drop_duplicates().reset_index(drop=True)
+        cases_full_df = all_mapped_df.drop_duplicates().reset_index(drop=True)
+
+    # Build export cases (filtered to configured columns only)
+    export_templates = config.get("export_templates", {})
+    cases_cols = export_templates.get("Cases", {}).get("columns", [])
+    available_cases_cols = [c for c in cases_cols if c in cases_full_df.columns]
+    cases_df = cases_full_df[available_cases_cols].reset_index(drop=True)
 
     # Build specimen DataFrames
     specimen_dfs = {}
@@ -508,17 +510,18 @@ def process_manifest(files, supplier, config):
             warnings.append(f"Donor {donor}: Negative formalin time ({hrs_formalin} hrs).")
 
     # Apply display-as rules to all DataFrames
+    cases_full_df = apply_display_as_rules(cases_full_df, config)
     cases_df = apply_display_as_rules(cases_df, config)
     for key in specimen_dfs:
         specimen_dfs[key] = apply_display_as_rules(specimen_dfs[key], config)
 
-    # Evaluate alerts on cases
-    case_alerts = evaluate_alerts(cases_df, config)
+    # Evaluate alerts on full cases data (has all columns, not just export columns)
+    case_alerts = evaluate_alerts(cases_full_df, config)
 
     # WO Summary
     wo_summary = build_wo_summary(cases_df, specimen_dfs)
 
-    return cases_df, specimen_dfs, wo_summary, warnings, list(set(all_unrecognized)), case_alerts
+    return cases_df, specimen_dfs, wo_summary, warnings, list(set(all_unrecognized)), case_alerts, cases_full_df
 
 
 # ---------------------------------------------------------------------------
@@ -619,7 +622,80 @@ def evaluate_alert_condition(row, rule):
             except (ValueError, TypeError):
                 return False
 
+    # Column-to-column comparisons (dates or numeric)
+    elif condition_type in (
+        "column_before", "column_after",
+        "column_equals", "column_not_equals",
+        "column_greater_than", "column_less_than",
+    ):
+        compare_column = rule.get("compare_column")
+        if not column or not compare_column:
+            return False
+        if column not in row or compare_column not in row:
+            return False
+
+        left_raw = row[column]
+        right_raw = row[compare_column]
+
+        # Skip if either side is empty
+        if _is_empty(left_raw) or _is_empty(right_raw):
+            return False
+
+        if condition_type in ("column_before", "column_after"):
+            left_dt = parse_combined_datetime(left_raw) or _try_parse_date_as_dt(left_raw)
+            right_dt = parse_combined_datetime(right_raw) or _try_parse_date_as_dt(right_raw)
+            if left_dt is None or right_dt is None:
+                return False
+            if condition_type == "column_before":
+                return left_dt < right_dt
+            else:
+                return left_dt > right_dt
+
+        # Numeric column comparisons
+        try:
+            left_num = float(str(left_raw).replace(",", "."))
+            right_num = float(str(right_raw).replace(",", "."))
+        except (ValueError, TypeError):
+            # Fall back to string comparison
+            left_num, right_num = None, None
+
+        if condition_type == "column_equals":
+            if left_num is not None:
+                return left_num == right_num
+            return str(left_raw).strip() == str(right_raw).strip()
+        elif condition_type == "column_not_equals":
+            if left_num is not None:
+                return left_num != right_num
+            return str(left_raw).strip() != str(right_raw).strip()
+        elif condition_type == "column_greater_than":
+            if left_num is not None:
+                return left_num > right_num
+            return False
+        elif condition_type == "column_less_than":
+            if left_num is not None:
+                return left_num < right_num
+            return False
+
     return False
+
+
+def _is_empty(val):
+    """Check if a value is empty/NaN/blank."""
+    if val is None:
+        return True
+    if isinstance(val, float) and pd.isna(val):
+        return True
+    if str(val).strip() in ("", "nan", "None", "NaT"):
+        return True
+    return False
+
+
+def _try_parse_date_as_dt(val):
+    """Try to parse a date-only value as a datetime for comparison."""
+    d = parse_date(val)
+    if d is not None:
+        return datetime.combine(d, datetime.min.time())
+    return None
 
 
 def evaluate_alerts(df, config):

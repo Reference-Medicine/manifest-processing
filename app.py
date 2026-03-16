@@ -14,6 +14,7 @@ from processing_engine import (
     load_config,
     save_config,
     process_manifest,
+    evaluate_alerts,
     CONFIG_PATH,
 )
 
@@ -130,6 +131,8 @@ def init_state():
         st.session_state.unrecognized = []
     if "case_alerts" not in st.session_state:
         st.session_state.case_alerts = {}
+    if "cases_full_df" not in st.session_state:
+        st.session_state.cases_full_df = None
 
 
 init_state()
@@ -183,7 +186,7 @@ if page == "Process Manifests":
 
     if uploaded_files and st.button("Process Manifests", type="primary"):
         with st.spinner("Processing..."):
-            cases_df, specimen_dfs, wo_summary, warnings, unrecognized, case_alerts = process_manifest(
+            cases_df, specimen_dfs, wo_summary, warnings, unrecognized, case_alerts, cases_full_df = process_manifest(
                 uploaded_files, supplier, config
             )
 
@@ -193,6 +196,7 @@ if page == "Process Manifests":
             st.session_state.warnings = warnings
             st.session_state.unrecognized = unrecognized
             st.session_state.case_alerts = case_alerts
+            st.session_state.cases_full_df = cases_full_df
             st.session_state.processed = True
 
             # Auto-add unrecognized columns to config
@@ -227,6 +231,32 @@ if page == "Process Manifests":
             st.subheader("Work Order Summary")
             st.dataframe(st.session_state.wo_summary, use_container_width=True, hide_index=True)
 
+        # Refresh Alerts button — re-evaluates alert rules against current cases
+        if st.session_state.cases_full_df is not None and not st.session_state.cases_full_df.empty:
+            if st.button("Refresh Alerts", help="Re-evaluate alert rules (use after adding/editing rules)"):
+                fresh_config = load_config()
+                st.session_state.config = fresh_config
+                st.session_state.case_alerts = evaluate_alerts(st.session_state.cases_full_df, fresh_config)
+                config = fresh_config
+                st.rerun()
+
+        # Alerts Summary Table
+        case_alerts = st.session_state.case_alerts
+        if case_alerts and st.session_state.cases_df is not None:
+            cases_df = st.session_state.cases_df
+            st.subheader("Alerts Summary")
+
+            alert_rows = []
+            for idx, alerts in case_alerts.items():
+                donor = cases_df.at[idx, "Donor ID"] if "Donor ID" in cases_df.columns else f"Row {idx}"
+                wo = cases_df.at[idx, "WO #"] if "WO #" in cases_df.columns else ""
+                for alert_msg in alerts:
+                    alert_rows.append({"WO #": wo, "Donor ID": donor, "Alert": alert_msg})
+
+            alert_summary_df = pd.DataFrame(alert_rows)
+            st.write(f"**{len(case_alerts)} case(s), {len(alert_rows)} total alert(s)**")
+            st.dataframe(alert_summary_df, use_container_width=True, hide_index=True)
+
         # Cases preview & download (with alert highlighting)
         if st.session_state.cases_df is not None and not st.session_state.cases_df.empty:
             st.subheader("Cases Export")
@@ -234,9 +264,6 @@ if page == "Process Manifests":
             case_alerts = st.session_state.case_alerts
 
             if case_alerts:
-                st.write(f"**{len(case_alerts)} case(s) with alerts** — highlighted rows have active alerts.")
-
-                # Build styled HTML table with alert highlighting and hover tooltips
                 st.markdown(render_cases_with_alerts(cases_df, case_alerts), unsafe_allow_html=True)
             else:
                 st.dataframe(cases_df, use_container_width=True, hide_index=True)
@@ -602,6 +629,12 @@ elif page == "Alert Rules":
         "greater_than",
         "less_than",
         "is_negative",
+        "column_before",
+        "column_after",
+        "column_equals",
+        "column_not_equals",
+        "column_greater_than",
+        "column_less_than",
     ]
     condition_labels = {
         "value_equals": "Value equals",
@@ -611,19 +644,33 @@ elif page == "Alert Rules":
         "greater_than": "Greater than (numeric)",
         "less_than": "Less than (numeric)",
         "is_negative": "Is negative (numeric)",
+        "column_before": "Is before (date/time) another column",
+        "column_after": "Is after (date/time) another column",
+        "column_equals": "Equals another column",
+        "column_not_equals": "Does not equal another column",
+        "column_greater_than": "Is greater than another column (numeric)",
+        "column_less_than": "Is less than another column (numeric)",
     }
     needs_value = {"value_equals", "value_contains", "greater_than", "less_than"}
+    needs_compare_column = {
+        "column_before", "column_after", "column_equals",
+        "column_not_equals", "column_greater_than", "column_less_than",
+    }
 
     alert_rules = config.get("alert_rules", [])
 
     edited = False
 
     for i, rule in enumerate(alert_rules):
-        cond_label = condition_labels.get(rule.get("condition_type", ""), rule.get("condition_type", ""))
-        with st.expander(
-            f'{rule.get("message", "Alert")} — {rule.get("column", "?")} {cond_label}',
-            expanded=False,
-        ):
+        cond_type = rule.get("condition_type", "")
+        cond_label = condition_labels.get(cond_type, cond_type)
+        compare_col = rule.get("compare_column", "")
+        if cond_type in needs_compare_column and compare_col:
+            expander_label = f'{rule.get("message", "Alert")} — {rule.get("column", "?")} {cond_label} {compare_col}'
+        else:
+            expander_label = f'{rule.get("message", "Alert")} — {rule.get("column", "?")} {cond_label}'
+
+        with st.expander(expander_label, expanded=False):
             new_msg = st.text_input("Alert message", value=rule.get("message", ""), key=f"al_msg_{i}")
 
             col1, col2 = st.columns(2)
@@ -645,8 +692,16 @@ elif page == "Alert Rules":
                 )
 
             new_val = ""
+            new_compare_col = ""
             if new_cond in needs_value:
                 new_val = st.text_input("Value", value=str(rule.get("value", "")), key=f"al_val_{i}")
+            elif new_cond in needs_compare_column:
+                current_cc = rule.get("compare_column", "")
+                cc_options = [""] + all_output_fields
+                cc_idx = cc_options.index(current_cc) if current_cc in cc_options else 0
+                new_compare_col = st.selectbox(
+                    "Compare to column", cc_options, index=cc_idx, key=f"al_cc_{i}"
+                )
 
             col_del, _ = st.columns([1, 3])
             with col_del:
@@ -660,6 +715,7 @@ elif page == "Alert Rules":
                 "column": new_col,
                 "condition_type": new_cond,
                 "value": new_val,
+                "compare_column": new_compare_col,
             }
             if updated_rule != rule:
                 alert_rules[i] = updated_rule
@@ -679,7 +735,13 @@ elif page == "Alert Rules":
                 condition_types,
                 format_func=lambda x: condition_labels.get(x, x),
             )
-        new_a_val = st.text_input("Value (for equals/contains/greater/less conditions)")
+
+        new_a_val = ""
+        new_a_cc = ""
+        if new_a_cond in needs_value:
+            new_a_val = st.text_input("Value (for equals/contains/greater/less conditions)")
+        elif new_a_cond in needs_compare_column:
+            new_a_cc = st.selectbox("Compare to column", [""] + all_output_fields, key="new_al_cc")
 
         submitted = st.form_submit_button("Add Alert Rule")
         if submitted and new_a_msg and new_a_col:
@@ -688,6 +750,7 @@ elif page == "Alert Rules":
                 "column": new_a_col,
                 "condition_type": new_a_cond,
                 "value": new_a_val,
+                "compare_column": new_a_cc,
             })
             edited = True
 
