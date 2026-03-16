@@ -1,5 +1,17 @@
 {
   "display_as_rules": [
+     {
+      "match": "Low-grade",
+      "display_as": "Low",
+      "exact_match": true,
+      "columns": ["Grade"]
+    },
+    {
+      "match": "High-grade",
+      "display_as": "High",
+      "exact_match": true,
+      "columns": ["Grade"]
+    },
     {
       "match": "White",
       "display_as": "White or Caucasian",
@@ -14,6 +26,11 @@
     }
   ],
   "alert_rules": [
+   {
+      "column": "WO #",
+      "condition": "is_empty",
+      "message": "Missing WO #"
+    },
     {
       "column": "Stage",
       "condition": "is_empty",
