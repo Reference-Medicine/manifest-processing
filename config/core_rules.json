@@ -1,0 +1,46 @@
+{
+  "display_as_rules": [
+     {
+      "match": "Low-grade",
+      "display_as": "Low",
+      "exact_match": true,
+      "columns": ["Grade"]
+    },
+    {
+      "match": "High-grade",
+      "display_as": "High",
+      "exact_match": true,
+      "columns": ["Grade"]
+    },
+    {
+      "match": "White",
+      "display_as": "White or Caucasian",
+      "exact_match": true,
+      "columns": ["Race"]
+    },
+    {
+      "match": "Treatment naive",
+      "display_as": "Not treated",
+      "exact_match": true,
+      "columns": ["Treatment Status"]
+    }
+  ],
+  "alert_rules": [
+   {
+      "column": "WO #",
+      "condition": "is_empty",
+      "message": "Missing WO #"
+    },
+    {
+      "column": "Stage",
+      "condition": "is_empty",
+      "message": "Missing Stage"
+    },
+    {
+      "column": "Date/time of operation",
+      "condition": "column_before",
+      "compare_column": "Date/time of blood collection",
+      "message": "Operation date/time is before blood collection date/time."
+    }
+  ]
+}

@@ -1,0 +1,1368 @@
+{
+  "suppliers": {
+    "CSD": {
+      "name": "CSD",
+      "description": "Each record = 1 donor. Columns indicate specimen counts. Translated from Ukrainian.",
+      "record_type": "donor",
+      "file_count": "single"
+    },
+    "Biomedica": {
+      "name": "Biomedica",
+      "description": "Each record = 1 specimen. Pre-translated. One manifest per work order.",
+      "record_type": "specimen",
+      "file_count": "multiple"
+    }
+  },
+  "column_mappings": [
+    {
+      "csd": "Comment",
+      "biomedica": null,
+      "output": null,
+      "type": "string",
+      "category": "case",
+      "comments": null
+    },
+    {
+      "csd": null,
+      "biomedica": null,
+      "output": "Collection partner",
+      "type": "string",
+      "category": "case",
+      "comments": null
+    },
+    {
+      "csd": "WO",
+      "biomedica": "Work Order",
+      "output": "WO #",
+      "type": "string",
+      "category": "case",
+      "comments": null
+    },
+    {
+      "csd": null,
+      "biomedica": null,
+      "output": "Project ID",
+      "type": "string",
+      "category": "case",
+      "comments": null
+    },
+    {
+      "csd": null,
+      "biomedica": "Country of collection",
+      "output": "Country of collection",
+      "type": "string",
+      "category": "case",
+      "comments": null
+    },
+    {
+      "csd": null,
+      "biomedica": null,
+      "output": "RM case ID",
+      "type": "string",
+      "category": "case",
+      "comments": null
+    },
+    {
+      "csd": "Patient Status",
+      "biomedica": null,
+      "output": null,
+      "type": "string",
+      "category": "case",
+      "comments": null
+    },
+    {
+      "csd": "Project ID",
+      "biomedica": null,
+      "output": null,
+      "type": "string",
+      "category": "case",
+      "comments": null
+    },
+    {
+      "csd": "No Site",
+      "biomedica": "Site number",
+      "output": "Site #",
+      "type": "string",
+      "category": "case",
+      "comments": null
+    },
+    {
+      "csd": "BB Number",
+      "biomedica": "Specimen ID",
+      "output": "Specimen ID",
+      "type": "string",
+      "category": "specimen",
+      "comments": null
+    },
+    {
+      "csd": "SourceID",
+      "biomedica": "Donor ID",
+      "output": "Donor ID",
+      "type": "string",
+      "category": "case",
+      "comments": null
+    },
+    {
+      "csd": "Gender",
+      "biomedica": "Sex",
+      "output": "Sex",
+      "type": "string",
+      "category": "case",
+      "comments": null
+    },
+    {
+      "csd": "Age",
+      "biomedica": "Age",
+      "output": "Age",
+      "type": "integer",
+      "category": "case",
+      "comments": null
+    },
+    {
+      "csd": "Race",
+      "biomedica": "Race",
+      "output": "Race",
+      "type": "string",
+      "category": "case",
+      "comments": null
+    },
+    {
+      "csd": null,
+      "biomedica": "Ethnicity",
+      "output": "Ethnicity",
+      "type": "string",
+      "category": "case",
+      "comments": null
+    },
+    {
+      "csd": "Weight",
+      "biomedica": "Weight, kg",
+      "output": "Weight",
+      "type": "float",
+      "category": "case",
+      "comments": null
+    },
+    {
+      "csd": "Height",
+      "biomedica": "Height, cm",
+      "output": "Height",
+      "type": "float",
+      "category": "case",
+      "comments": null
+    },
+    {
+      "csd": "Smoking status",
+      "biomedica": "Smoking Status",
+      "output": "Smoking Status",
+      "type": "string",
+      "category": "case",
+      "comments": null
+    },
+    {
+      "csd": "Menopause",
+      "biomedica": null,
+      "output": "Menopausal status",
+      "type": "string",
+      "category": "case",
+      "comments": null
+    },
+    {
+      "csd": "Cancer Type",
+      "biomedica": "Tumor location",
+      "output": "Cancer type",
+      "type": "string",
+      "category": "case",
+      "comments": null
+    },
+    {
+      "csd": "Treatment Status",
+      "biomedica": "Treatment status",
+      "output": "Treatment Status",
+      "type": "string",
+      "category": "case",
+      "comments": null
+    },
+    {
+      "csd": null,
+      "biomedica": "Treatment details",
+      "output": "Treatment details",
+      "type": "string",
+      "category": "case",
+      "comments": null
+    },
+    {
+      "csd": null,
+      "biomedica": "Type of collection",
+      "output": "Specimen type",
+      "type": "string",
+      "category": "specimen",
+      "comments": null
+    },
+    {
+      "csd": "Date Operation",
+      "biomedica": "Date of operation**",
+      "output": "Date of operation",
+      "type": "date",
+      "category": "case",
+      "comments": null
+    },
+    {
+      "csd": "Time Operation",
+      "biomedica": "Time of operation**",
+      "output": "Time of operation",
+      "type": "time",
+      "category": "case",
+      "comments": null
+    },
+    {
+      "csd": null,
+      "biomedica": null,
+      "output": "Date/time of operation",
+      "type": "date/time",
+      "category": "case",
+      "comments": "calculated"
+    },
+    {
+      "csd": "Date Blood Collection",
+      "biomedica": "Date of blood collection**",
+      "output": "Date of blood collection",
+      "type": "date",
+      "category": "blood",
+      "comments": null
+    },
+    {
+      "csd": "Time Blood Collection",
+      "biomedica": "Time of blood collection**",
+      "output": "Time of blood collection",
+      "type": "time",
+      "category": "blood",
+      "comments": null
+    },
+    {
+      "csd": null,
+      "biomedica": null,
+      "output": "Date/time of blood collection",
+      "type": "date/time",
+      "category": "blood",
+      "comments": "calculated"
+    },
+    {
+      "csd": null,
+      "biomedica": null,
+      "output": "Hours between blood collection and operation",
+      "type": "float",
+      "category": "blood",
+      "comments": "calculated"
+    },
+    {
+      "csd": "Plasma Processing Start Date",
+      "biomedica": "Blood processing start date**",
+      "output": "Plasma Processing Start Date",
+      "type": "date",
+      "category": "plasma",
+      "comments": null
+    },
+    {
+      "csd": "Plasma Processing Start Time",
+      "biomedica": "Blood processing start time**",
+      "output": "Plasma Processing Start Time",
+      "type": "time",
+      "category": "plasma",
+      "comments": null
+    },
+    {
+      "csd": null,
+      "biomedica": null,
+      "output": "Date/time of plasma processing start",
+      "type": "date/time",
+      "category": "plasma",
+      "comments": "calculated"
+    },
+    {
+      "csd": null,
+      "biomedica": null,
+      "output": "Hrs until plasma processing start",
+      "type": "float",
+      "category": "plasma",
+      "comments": "calculated"
+    },
+    {
+      "csd": "Serum Processing Start Date",
+      "biomedica": null,
+      "output": "Serum Processing Start Date",
+      "type": "date",
+      "category": "serum",
+      "comments": null
+    },
+    {
+      "csd": "Serum Processing Start Time",
+      "biomedica": null,
+      "output": "Serum Processing Start Time",
+      "type": "time",
+      "category": "serum",
+      "comments": null
+    },
+    {
+      "csd": null,
+      "biomedica": null,
+      "output": "Date/time of serum processing start",
+      "type": "date/time",
+      "category": "serum",
+      "comments": "calculated"
+    },
+    {
+      "csd": null,
+      "biomedica": null,
+      "output": "Hrs until serum processing start",
+      "type": "float",
+      "category": "serum",
+      "comments": "calculated"
+    },
+    {
+      "csd": "Cold Ischemia Start Date",
+      "biomedica": null,
+      "output": null,
+      "type": "date",
+      "category": "tissue",
+      "comments": null
+    },
+    {
+      "csd": "Date Of Immersion Of Tissue In Formalin",
+      "biomedica": "Date of immersion of tissue in formalin**",
+      "output": "Date Of Immersion In Formalin",
+      "type": "date",
+      "category": "tissue",
+      "comments": null
+    },
+    {
+      "csd": "Time Of Immersion Of Tissue In Formalin",
+      "biomedica": "Time of immersion of tissue in formalin**",
+      "output": "Time Of Immersion In Formalin",
+      "type": "time",
+      "category": "tissue",
+      "comments": null
+    },
+    {
+      "csd": null,
+      "biomedica": null,
+      "output": "Date/time of immersion in formalin",
+      "type": "date/time",
+      "category": "tissue",
+      "comments": "calculated"
+    },
+    {
+      "csd": "Grossing Date",
+      "biomedica": "Date of removal of the tissue from formalin**",
+      "output": "Grossing Date",
+      "type": "date",
+      "category": "tissue",
+      "comments": null
+    },
+    {
+      "csd": "Grossing Time",
+      "biomedica": "Time of removal of the tissue from formalin**",
+      "output": "Grossing Time",
+      "type": "time",
+      "category": "tissue",
+      "comments": null
+    },
+    {
+      "csd": null,
+      "biomedica": null,
+      "output": "Date/time of removal from formalin",
+      "type": "date/time",
+      "category": "tissue",
+      "comments": "calculated"
+    },
+    {
+      "csd": null,
+      "biomedica": null,
+      "output": "Hours in formalin",
+      "type": "float",
+      "category": "tissue",
+      "comments": "calculated"
+    },
+    {
+      "csd": "Intervention Type",
+      "biomedica": "Surgical procedure",
+      "output": "Surgical procedure",
+      "type": "string",
+      "category": "case",
+      "comments": null
+    },
+    {
+      "csd": null,
+      "biomedica": null,
+      "output": "Diagnosis type",
+      "type": "string",
+      "category": "case",
+      "comments": null
+    },
+    {
+      "csd": "Clinical Data",
+      "biomedica": "Clinical diagnosis",
+      "output": "Clinical diagnosis",
+      "type": "string",
+      "category": "case",
+      "comments": null
+    },
+    {
+      "csd": "Pathology Report",
+      "biomedica": "Pathologic diagnosis",
+      "output": "Pathology diagnosis",
+      "type": "string",
+      "category": "case",
+      "comments": null
+    },
+    {
+      "csd": "P Stage",
+      "biomedica": "Cancer stage",
+      "output": "Stage",
+      "type": "string",
+      "category": "case",
+      "comments": null
+    },
+    {
+      "csd": "ICD O Code",
+      "biomedica": null,
+      "output": "ICD O Code",
+      "type": "string",
+      "category": "case",
+      "comments": null
+    },
+    {
+      "csd": "Grade",
+      "biomedica": "Cancer grade",
+      "output": "Grade",
+      "type": "string",
+      "category": "case",
+      "comments": null
+    },
+    {
+      "csd": "T Stage",
+      "biomedica": "T",
+      "output": "T",
+      "type": "string",
+      "category": "case",
+      "comments": null
+    },
+    {
+      "csd": "N Stage",
+      "biomedica": "N",
+      "output": "N",
+      "type": "string",
+      "category": "case",
+      "comments": null
+    },
+    {
+      "csd": "M Stage",
+      "biomedica": "M",
+      "output": "M",
+      "type": "string",
+      "category": "case",
+      "comments": null
+    },
+    {
+      "csd": "Mts Location",
+      "biomedica": "Metastasis location",
+      "output": "Metastasis location",
+      "type": "string",
+      "category": "case",
+      "comments": null
+    },
+    {
+      "csd": "Total Number of Blocks",
+      "biomedica": "FFPE total",
+      "output": "FFPE total",
+      "type": "integer",
+      "category": "tissue",
+      "comments": null
+    },
+    {
+      "csd": "Number of Tumor Blocks",
+      "biomedica": "FFPE tumor (quantity)",
+      "output": "FFPE tumor",
+      "type": "integer",
+      "category": "tissue",
+      "comments": null
+    },
+    {
+      "csd": "Number of Norm Blocks",
+      "biomedica": "FFPE normal (quantity)",
+      "output": "FFPE normal",
+      "type": "integer",
+      "category": "tissue",
+      "comments": null
+    },
+    {
+      "csd": "Number of Necrosis Blocks",
+      "biomedica": null,
+      "output": null,
+      "type": "integer",
+      "category": "tissue",
+      "comments": null
+    },
+    {
+      "csd": null,
+      "biomedica": null,
+      "output": "FF total",
+      "type": "integer",
+      "category": "tissue",
+      "comments": null
+    },
+    {
+      "csd": null,
+      "biomedica": null,
+      "output": "FF weight",
+      "type": "float",
+      "category": "tissue",
+      "comments": null
+    },
+    {
+      "csd": "Description Of Blocks",
+      "biomedica": "Description of the blocks",
+      "output": "Description Of Blocks",
+      "type": "string",
+      "category": "tissue",
+      "comments": null
+    },
+    {
+      "csd": "Macroscopic Description",
+      "biomedica": "Macroscopic description",
+      "output": "Macroscopic Description",
+      "type": "string",
+      "category": "tissue",
+      "comments": null
+    },
+    {
+      "csd": "Microscopic Description",
+      "biomedica": "Microscopic description",
+      "output": "Microscopic Description",
+      "type": "string",
+      "category": "tissue",
+      "comments": null
+    },
+    {
+      "csd": null,
+      "biomedica": null,
+      "output": "Specimen site",
+      "type": "string",
+      "category": "specimen",
+      "comments": null
+    },
+    {
+      "csd": null,
+      "biomedica": null,
+      "output": "Primary tumor site",
+      "type": "string",
+      "category": "case",
+      "comments": null
+    },
+    {
+      "csd": "DNA Concentration",
+      "biomedica": "DNA concentration (ng/ul)*",
+      "output": "DNA Concentration",
+      "type": "integer",
+      "category": "specimen",
+      "comments": null
+    },
+    {
+      "csd": "DNA QC Result",
+      "biomedica": "DNA QC result*",
+      "output": "DNA QC Result",
+      "type": "string",
+      "category": "specimen",
+      "comments": null
+    },
+    {
+      "csd": "PCR Ct Cycle Number",
+      "biomedica": null,
+      "output": "PCR Ct Cycle Number",
+      "type": "integer",
+      "category": "specimen",
+      "comments": null
+    },
+    {
+      "csd": "DNA Fragmentation",
+      "biomedica": "DNA fragmentation*",
+      "output": "DNA Fragmentation",
+      "type": "integer",
+      "category": "specimen",
+      "comments": null
+    },
+    {
+      "csd": "QC Kit",
+      "biomedica": "QC kit*",
+      "output": "QC Kit",
+      "type": "string",
+      "category": "specimen",
+      "comments": null
+    },
+    {
+      "csd": "IHC",
+      "biomedica": "IHC results",
+      "output": "IHC results",
+      "type": "string",
+      "category": "case",
+      "comments": null
+    },
+    {
+      "csd": "Molecular Alterations",
+      "biomedica": null,
+      "output": "Molecular Alterations",
+      "type": "string",
+      "category": "case",
+      "comments": null
+    },
+    {
+      "csd": "Blood Collection Tube Type",
+      "biomedica": "Tube type",
+      "output": null,
+      "type": "string",
+      "category": "blood",
+      "comments": null
+    },
+    {
+      "csd": null,
+      "biomedica": "Whole blood, # of tubes",
+      "output": "Whole blood # of tubes",
+      "type": "integer",
+      "category": "whole_blood",
+      "comments": null
+    },
+    {
+      "csd": null,
+      "biomedica": "Whole blood, sample volume, ml",
+      "output": "Whole blood total volume",
+      "type": "float",
+      "category": "whole_blood",
+      "comments": null
+    },
+    {
+      "csd": "Plasma",
+      "biomedica": null,
+      "output": "Streck plasma barcode",
+      "type": "string",
+      "category": "plasma",
+      "comments": null
+    },
+    {
+      "csd": "Total Plasma Quantity",
+      "biomedica": "Plasma, # of tubes",
+      "output": "Streck plasma # of tubes",
+      "type": "integer",
+      "category": "plasma",
+      "comments": null
+    },
+    {
+      "csd": "Total Plasma Volume",
+      "biomedica": null,
+      "output": "Streck plasma volume",
+      "type": "float",
+      "category": "plasma",
+      "comments": null
+    },
+    {
+      "csd": null,
+      "biomedica": null,
+      "output": "EDTA plasma barcode",
+      "type": "string",
+      "category": "plasma",
+      "comments": null
+    },
+    {
+      "csd": null,
+      "biomedica": null,
+      "output": "EDTA plasma # of tubes",
+      "type": "integer",
+      "category": "plasma",
+      "comments": null
+    },
+    {
+      "csd": null,
+      "biomedica": null,
+      "output": "EDTA plasma volume",
+      "type": "float",
+      "category": "plasma",
+      "comments": null
+    },
+    {
+      "csd": "Buffy Coat",
+      "biomedica": null,
+      "output": "Streck buffy coat barcode",
+      "type": "string",
+      "category": "buffy_coat",
+      "comments": null
+    },
+    {
+      "csd": "Total Number of aircraft",
+      "biomedica": "Buffy coat, # of tubes",
+      "output": "Streck buffy coat # of tubes",
+      "type": "integer",
+      "category": "buffy_coat",
+      "comments": "translation error - aircraft is related to buffy coat"
+    },
+    {
+      "csd": "Total Volume of the Sun",
+      "biomedica": null,
+      "output": "Streck buffy coat volume",
+      "type": "float",
+      "category": "buffy_coat",
+      "comments": "translation error - the sun is related to buffy coat"
+    },
+    {
+      "csd": null,
+      "biomedica": null,
+      "output": "EDTA buffy coat barcode",
+      "type": "string",
+      "category": "buffy_coat",
+      "comments": null
+    },
+    {
+      "csd": null,
+      "biomedica": null,
+      "output": "EDTA buffy coat # of tubes",
+      "type": "integer",
+      "category": "buffy_coat",
+      "comments": null
+    },
+    {
+      "csd": null,
+      "biomedica": null,
+      "output": "EDTA buffy coat volume",
+      "type": "float",
+      "category": "buffy_coat",
+      "comments": null
+    },
+    {
+      "csd": "Serum Tube Type",
+      "biomedica": null,
+      "output": null,
+      "type": "string",
+      "category": "serum",
+      "comments": null
+    },
+    {
+      "csd": "Serum",
+      "biomedica": null,
+      "output": "Serum barcode",
+      "type": "string",
+      "category": "serum",
+      "comments": null
+    },
+    {
+      "csd": "Total Serum Quantity",
+      "biomedica": null,
+      "output": "Serum # of tubes",
+      "type": "integer",
+      "category": "serum",
+      "comments": null
+    },
+    {
+      "csd": "Total Volume Serum",
+      "biomedica": null,
+      "output": "Serum volume",
+      "type": "integer",
+      "category": "serum",
+      "comments": null
+    },
+    {
+      "csd": "Tube Type",
+      "biomedica": null,
+      "output": null,
+      "type": "string",
+      "category": "specimen",
+      "comments": null
+    },
+    {
+      "csd": "Urine Collection date",
+      "biomedica": null,
+      "output": "Urine Collection date",
+      "type": "date",
+      "category": "urine",
+      "comments": null
+    },
+    {
+      "csd": "Urine Collection time",
+      "biomedica": null,
+      "output": "Urine Collection time",
+      "type": "time",
+      "category": "urine",
+      "comments": null
+    },
+    {
+      "csd": null,
+      "biomedica": null,
+      "output": "Urine Collection date/time",
+      "type": "date/time",
+      "category": "urine",
+      "comments": "calculated"
+    },
+    {
+      "csd": "Urine tube type",
+      "biomedica": null,
+      "output": null,
+      "type": "string",
+      "category": "urine",
+      "comments": null
+    },
+    {
+      "csd": "Urine (type tube 5 ml)",
+      "biomedica": null,
+      "output": null,
+      "type": "string",
+      "category": "urine",
+      "comments": null
+    },
+    {
+      "csd": "Total Urine Quantity",
+      "biomedica": null,
+      "output": "Urine (5 ml tube) # of tubes",
+      "type": "integer",
+      "category": "urine",
+      "comments": "first occurrence maps to 5ml"
+    },
+    {
+      "csd": "Total Urine Volume",
+      "biomedica": null,
+      "output": "Urine (5 ml tube) total volume",
+      "type": "float",
+      "category": "urine",
+      "comments": "first occurrence maps to 5ml"
+    },
+    {
+      "csd": null,
+      "biomedica": null,
+      "output": "Urine (2 ml tube) # of tubes",
+      "type": "integer",
+      "category": "urine",
+      "comments": null
+    },
+    {
+      "csd": null,
+      "biomedica": null,
+      "output": "Urine (2 ml tube) total volume",
+      "type": "float",
+      "category": "urine",
+      "comments": null
+    },
+    {
+      "csd": "Stool collection date",
+      "biomedica": "Date of stool collection**",
+      "output": "Stool Collection date",
+      "type": "date",
+      "category": "stool",
+      "comments": null
+    },
+    {
+      "csd": "Stool collection time",
+      "biomedica": "Time of stool collection**",
+      "output": "Stool Collection time",
+      "type": "time",
+      "category": "stool",
+      "comments": null
+    },
+    {
+      "csd": null,
+      "biomedica": null,
+      "output": "Stool Collection date/time",
+      "type": "date/time",
+      "category": "stool",
+      "comments": "calculated"
+    },
+    {
+      "csd": null,
+      "biomedica": "Stool freezing date**",
+      "output": "Stool freezing date",
+      "type": "date",
+      "category": "stool",
+      "comments": null
+    },
+    {
+      "csd": null,
+      "biomedica": "Stool freezing time**",
+      "output": "Stool freezing time",
+      "type": "time",
+      "category": "stool",
+      "comments": null
+    },
+    {
+      "csd": null,
+      "biomedica": null,
+      "output": "Stool freezing date/time",
+      "type": "date/time",
+      "category": "stool",
+      "comments": "calculated"
+    },
+    {
+      "csd": "Stool tube type",
+      "biomedica": null,
+      "output": null,
+      "type": "string",
+      "category": "stool",
+      "comments": null
+    },
+    {
+      "csd": null,
+      "biomedica": "Stool, # of tubes",
+      "output": null,
+      "type": "integer",
+      "category": "stool",
+      "comments": null
+    },
+    {
+      "csd": null,
+      "biomedica": "Stool, sample weight, g",
+      "output": null,
+      "type": "float",
+      "category": "stool",
+      "comments": null
+    },
+    {
+      "csd": "Stool No. 1",
+      "biomedica": null,
+      "output": "Stool No. 1 barcode",
+      "type": "string",
+      "category": "stool",
+      "comments": null
+    },
+    {
+      "csd": "Weight",
+      "biomedica": null,
+      "output": "Stool No. 1 weight",
+      "type": "float",
+      "category": "stool",
+      "comments": "first Weight after Stool No. 1"
+    },
+    {
+      "csd": "Stool No. 2",
+      "biomedica": null,
+      "output": "Stool No. 2 barcode",
+      "type": "string",
+      "category": "stool",
+      "comments": null
+    },
+    {
+      "csd": "Weight",
+      "biomedica": null,
+      "output": "Stool No. 2 weight",
+      "type": "float",
+      "category": "stool",
+      "comments": "second Weight after Stool No. 2"
+    },
+    {
+      "csd": null,
+      "biomedica": "FOB testing date",
+      "output": "FOB testing date",
+      "type": "date",
+      "category": "stool",
+      "comments": null
+    },
+    {
+      "csd": null,
+      "biomedica": "FOB testing result",
+      "output": "FOB testing result",
+      "type": "string",
+      "category": "stool",
+      "comments": null
+    },
+    {
+      "csd": "Type of approval",
+      "biomedica": "Type of approval",
+      "output": "Type of approval",
+      "type": "string",
+      "category": "case",
+      "comments": null
+    },
+    {
+      "csd": "Consent status",
+      "biomedica": "Consent status",
+      "output": "Consent status",
+      "type": "string",
+      "category": "case",
+      "comments": null
+    },
+    {
+      "csd": "Consent date",
+      "biomedica": "Consent date",
+      "output": "Consent date",
+      "type": "date",
+      "category": "case",
+      "comments": null
+    },
+    {
+      "csd": "Consent version",
+      "biomedica": "Consent version",
+      "output": "Consent version",
+      "type": "float",
+      "category": "case",
+      "comments": null
+    },
+    {
+      "csd": "Consent for future use",
+      "biomedica": "Consent for future use",
+      "output": "Consent for future use",
+      "type": "boolean",
+      "category": "case",
+      "comments": null
+    },
+    {
+      "csd": "IRB or Ethics Committee Approval Number",
+      "biomedica": "IRB or Ethics Committee Approval Number",
+      "output": "IRB or Ethics Committee Approval Number",
+      "type": "integer",
+      "category": "case",
+      "comments": null
+    },
+    {
+      "csd": "IRB or Ethics Committee Expiration Date",
+      "biomedica": "IRB or Ethics Committee Expiration Date",
+      "output": "IRB or Ethics Committee Expiration Date",
+      "type": "date",
+      "category": "case",
+      "comments": null
+    },
+    {
+      "csd": "Documentation provided?",
+      "biomedica": "Documentation provided?",
+      "output": "Documentation provided?",
+      "type": "boolean",
+      "category": "case",
+      "comments": null
+    }
+  ],
+  "specimen_id_rules": {
+    "plasma": {
+      "prefix": "PL",
+      "count_field": "Streck plasma # of tubes"
+    },
+    "buffy_coat": {
+      "prefix": "BC",
+      "count_field": "Streck buffy coat # of tubes"
+    },
+    "serum": {
+      "prefix": "SR",
+      "count_field": "Serum # of tubes"
+    },
+    "whole_blood": {
+      "prefix": "WB",
+      "count_field": "Whole blood # of tubes"
+    },
+    "urine_5ml": {
+      "prefix": "UR5",
+      "count_field": "Urine (5 ml tube) # of tubes"
+    },
+    "urine_2ml": {
+      "prefix": "UR2",
+      "count_field": "Urine (2 ml tube) # of tubes"
+    },
+    "stool": {
+      "prefix": "ST",
+      "count_field": null
+    },
+    "tissue_ffpe_tumor": {
+      "prefix": "FT",
+      "count_field": "FFPE tumor"
+    },
+    "tissue_ffpe_normal": {
+      "prefix": "FN",
+      "count_field": "FFPE normal"
+    },
+    "tissue_ff": {
+      "prefix": "FF",
+      "count_field": "FF total"
+    }
+  },
+  "export_templates": {
+    "Cases": {
+      "categories": [
+        "case"
+      ],
+      "columns": [
+        "WO #",
+        "Collection partner",
+        "Project ID",
+        "RM case ID",
+        "Donor ID",
+        "Site #",
+        "Sex",
+        "Age",
+        "Race",
+        "Ethnicity",
+        "Weight",
+        "Height",
+        "Smoking Status",
+        "Menopausal status",
+        "Cancer type",
+        "Treatment Status",
+        "Treatment details",
+        "Date of operation",
+        "Time of operation",
+        "Date/time of operation",
+        "Surgical procedure",
+        "Diagnosis type",
+        "Clinical diagnosis",
+        "Pathology diagnosis",
+        "Stage",
+        "ICD O Code",
+        "Grade",
+        "T",
+        "N",
+        "M",
+        "Metastasis location",
+        "Primary tumor site",
+        "IHC results",
+        "Molecular Alterations",
+        "Type of approval",
+        "Consent status",
+        "Consent date",
+        "Consent version",
+        "Consent for future use",
+        "IRB or Ethics Committee Approval Number",
+        "IRB or Ethics Committee Expiration Date",
+        "Documentation provided?",
+        "Country of collection"
+      ]
+    },
+    "Tissue": {
+      "categories": [
+        "tissue"
+      ],
+      "columns": [
+        "WO #",
+        "Donor ID",
+        "Specimen ID",
+        "Date of operation",
+        "Time of operation",
+        "Date/time of operation",
+        "Date Of Immersion In Formalin",
+        "Time Of Immersion In Formalin",
+        "Date/time of immersion in formalin",
+        "Grossing Date",
+        "Grossing Time",
+        "Date/time of removal from formalin",
+        "Hours in formalin",
+        "FFPE total",
+        "FFPE tumor",
+        "FFPE normal",
+        "FF total",
+        "FF weight",
+        "Description Of Blocks",
+        "Macroscopic Description",
+        "Microscopic Description"
+      ]
+    },
+    "Whole Blood": {
+      "categories": [
+        "whole_blood",
+        "blood"
+      ],
+      "columns": [
+        "WO #",
+        "Donor ID",
+        "Specimen ID",
+        "Date of blood collection",
+        "Time of blood collection",
+        "Date/time of blood collection",
+        "Date of operation",
+        "Time of operation",
+        "Date/time of operation",
+        "Hours between blood collection and operation",
+        "Whole blood # of tubes",
+        "Whole blood total volume"
+      ]
+    },
+    "Plasma": {
+      "categories": [
+        "plasma",
+        "blood"
+      ],
+      "columns": [
+        "WO #",
+        "Donor ID",
+        "Specimen ID",
+        "Date of blood collection",
+        "Time of blood collection",
+        "Date/time of blood collection",
+        "Plasma Processing Start Date",
+        "Plasma Processing Start Time",
+        "Date/time of plasma processing start",
+        "Hrs until plasma processing start",
+        "Hours between blood collection and operation",
+        "Streck plasma barcode",
+        "Streck plasma # of tubes",
+        "Streck plasma volume",
+        "EDTA plasma barcode",
+        "EDTA plasma # of tubes",
+        "EDTA plasma volume"
+      ]
+    },
+    "Buffy Coat": {
+      "categories": [
+        "buffy_coat",
+        "blood"
+      ],
+      "columns": [
+        "WO #",
+        "Donor ID",
+        "Specimen ID",
+        "Date of blood collection",
+        "Time of blood collection",
+        "Date/time of blood collection",
+        "Plasma Processing Start Date",
+        "Plasma Processing Start Time",
+        "Date/time of plasma processing start",
+        "Hrs until plasma processing start",
+        "Hours between blood collection and operation",
+        "Streck buffy coat barcode",
+        "Streck buffy coat # of tubes",
+        "Streck buffy coat volume",
+        "EDTA buffy coat barcode",
+        "EDTA buffy coat # of tubes",
+        "EDTA buffy coat volume"
+      ]
+    },
+    "Serum": {
+      "categories": [
+        "serum",
+        "blood"
+      ],
+      "columns": [
+        "WO #",
+        "Donor ID",
+        "Specimen ID",
+        "Date of blood collection",
+        "Time of blood collection",
+        "Date/time of blood collection",
+        "Serum Processing Start Date",
+        "Serum Processing Start Time",
+        "Date/time of serum processing start",
+        "Hrs until serum processing start",
+        "Hours between blood collection and operation",
+        "Serum barcode",
+        "Serum # of tubes",
+        "Serum volume"
+      ]
+    },
+    "Urine": {
+      "categories": [
+        "urine"
+      ],
+      "columns": [
+        "WO #",
+        "Donor ID",
+        "Specimen ID",
+        "Urine Collection date",
+        "Urine Collection time",
+        "Urine Collection date/time",
+        "Urine (5 ml tube) # of tubes",
+        "Urine (5 ml tube) total volume",
+        "Urine (2 ml tube) # of tubes",
+        "Urine (2 ml tube) total volume"
+      ]
+    },
+    "Stool": {
+      "categories": [
+        "stool"
+      ],
+      "columns": [
+        "WO #",
+        "Donor ID",
+        "Specimen ID",
+        "Stool Collection date",
+        "Stool Collection time",
+        "Stool Collection date/time",
+        "Stool freezing date",
+        "Stool freezing time",
+        "Stool freezing date/time",
+        "Stool No. 1 barcode",
+        "Stool No. 1 weight",
+        "Stool No. 2 barcode",
+        "Stool No. 2 weight",
+        "FOB testing date",
+        "FOB testing result"
+      ]
+    }
+  },
+  "calculations": [
+    {
+      "output": "Date/time of operation",
+      "type": "combine_datetime",
+      "date_field": "Date of operation",
+      "time_field": "Time of operation"
+    },
+    {
+      "output": "Date/time of blood collection",
+      "type": "combine_datetime",
+      "date_field": "Date of blood collection",
+      "time_field": "Time of blood collection"
+    },
+    {
+      "output": "Hours between blood collection and operation",
+      "type": "time_diff_hours",
+      "start": "Date/time of blood collection",
+      "end": "Date/time of operation",
+      "note": "Should be positive - blood collection before operation"
+    },
+    {
+      "output": "Date/time of plasma processing start",
+      "type": "combine_datetime",
+      "date_field": "Plasma Processing Start Date",
+      "time_field": "Plasma Processing Start Time"
+    },
+    {
+      "output": "Hrs until plasma processing start",
+      "type": "time_diff_hours",
+      "start": "Date/time of blood collection",
+      "end": "Date/time of plasma processing start"
+    },
+    {
+      "output": "Date/time of serum processing start",
+      "type": "combine_datetime",
+      "date_field": "Serum Processing Start Date",
+      "time_field": "Serum Processing Start Time"
+    },
+    {
+      "output": "Hrs until serum processing start",
+      "type": "time_diff_hours",
+      "start": "Date/time of blood collection",
+      "end": "Date/time of serum processing start"
+    },
+    {
+      "output": "Date/time of immersion in formalin",
+      "type": "combine_datetime",
+      "date_field": "Date Of Immersion In Formalin",
+      "time_field": "Time Of Immersion In Formalin"
+    },
+    {
+      "output": "Date/time of removal from formalin",
+      "type": "combine_datetime",
+      "date_field": "Grossing Date",
+      "time_field": "Grossing Time"
+    },
+    {
+      "output": "Hours in formalin",
+      "type": "time_diff_hours",
+      "start": "Date/time of immersion in formalin",
+      "end": "Date/time of removal from formalin"
+    },
+    {
+      "output": "Urine Collection date/time",
+      "type": "combine_datetime",
+      "date_field": "Urine Collection date",
+      "time_field": "Urine Collection time"
+    },
+    {
+      "output": "Stool Collection date/time",
+      "type": "combine_datetime",
+      "date_field": "Stool Collection date",
+      "time_field": "Stool Collection time"
+    },
+    {
+      "output": "Stool freezing date/time",
+      "type": "combine_datetime",
+      "date_field": "Stool freezing date",
+      "time_field": "Stool freezing time"
+    }
+  ]
+}
